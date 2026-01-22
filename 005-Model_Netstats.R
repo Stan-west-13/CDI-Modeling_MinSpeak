@@ -12,8 +12,14 @@ model_df <- d %>%
   unique()
 split_mods <- split(model_df, model_df$metric)
 
+## Model without group
 map(split_mods, function(x){
   return(summary(lm(z~nProduced*interview_age, data = x)))
+})
+
+## Model with group
+map(split_mods, function(x){
+  return(summary(lm(z~nProduced*interview_age*group, data = x)))
 })
 
 ggplot(model_df, aes(x = nProduced, y = z,color = group))+
