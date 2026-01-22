@@ -9,6 +9,7 @@ source("R/Random_Networks.R")
 
 ## Individual graphs
 load("data/individual_networks.Rdata")
+load("data/child_oriented_graph.Rdata")
 cdi <- readRDS("data/cdi-metadata.rds")
 cdi$POS <- ifelse(cdi$lexical_class == "nouns"|cdi$lexical_class=="verbs",cdi$lexical_class, "other")
 
@@ -24,5 +25,6 @@ ran_list <- map(vocab_graphs, function(x){
   return(list(subjectkey = x$id,vocab = vocab,vocab_size = vocab_size, graph = x$graph, POS = POS))                  
 })
   
+balanced_RAN_network(ran_list[[1]]$vocab_size,graph,ran_list[[1]]$POS)
 
-data.frame(cue = length(names(as_adj_list(vocab_graphs[[1]]))))
+multiSample(ran_list[[1]]$vocab_size,V(graph),ran_list[[1]]$POS,simplify2vec = TRUE)

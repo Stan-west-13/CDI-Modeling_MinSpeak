@@ -26,6 +26,11 @@ random_acq_network_igraph <- function(vocab_size, G){
   return(igraph::induced_subgraph(G, ix))
 }
 
+multiSample <- function(n, x, fct, simplify2vec = FALSE) {
+  y <- mapply(sample, split(x, fct), n, SIMPLIFY = FALSE)
+  return(if(simplify2vec) unname(do.call(c, y)) else y)
+}
+
 balanced_RAN_network <- function(vocab_size, G, POS) {
   env_size <- igraph::V(G)
   assertthat::are_equal(env_size, length(POS))
