@@ -13,12 +13,14 @@ sum(unique(ASD_all$CDI_Metadata_compatible[ASD_all$form == "WG"]) %in% unique(AS
 ## Merge in Item-wise data and CDI word IDs that span form.
 min_speak_itemwise <- min_speak_samp %>%
   left_join(ASD_all, by = c("subjectkey","interview_age","nProduced","form")) %>% ## Join over itemwise data
-  left_join(select(cdi, word, CDI_ID = num_item_id), by = c("CDI_Metadata_compatible" = "word")) ## Join in CDI codes across forms
+  left_join(select(cdi, word, CDI_ID = num_item_id), by = c("CDI_Metadata_compatible" = "word")) %>% ## Join in CDI codes across forms
+  filter(nProduced >= 3 )
 
 ## Select just the first administration of CDI.
 first_admins <- min_speak_itemwise %>%
   group_by(subjectkey) %>%
-  slice_min(interview_age,n = 1)
+  slice_min(interview_age,n = 1) %>%
+  filter(nProduced >= 3)
 
 
 write_rds(min_speak_itemwise, "data/all_minspeak.rds")

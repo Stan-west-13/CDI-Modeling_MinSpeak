@@ -1,15 +1,14 @@
+#devtools::install_github("dgrtwo/fuzzyjoin",force = TRUE)
+
 library(tidyverse)
-library(ggplot2)
 library(igraph)
 library(purrr)
-library(furrr)
-library(future)
-library(devtools)
+library(fuzzyjoin)
 
 ## Association network functions
 ## Fuzzy matching packages
 source("R/assocNetwork.R")
-install_github("dgrtwo/fuzzyjoin")
+
 ## Load vocabulary and association data
 load("data/associations-child.Rdata")
 vocab_data <- read_rds("data/all_minspeak.rds")
@@ -17,18 +16,35 @@ vocab_data <- read_rds("data/all_minspeak.rds")
 ## Resolve inconsistencies between cues/CDI
 x <- data.frame(vocab = unique(vocab_data$CDI_Metadata_compatible)) ## Unique Vocab words
 y <- data.frame(cue = as.character(unique(associations_child$CUE))) ## Unique cues
-match_set <- y$cue[!y$cue %in% x$vocab] ## Mismatches
+match_set <- y %>%
+  filter(!cue %in% x$vocab)## Mismatches
 
-x$distances <- stringdist(match_set,
-                        x$vocab,
-                        method = "lv")
+reference_set <- x %>% ## References to match on
+  filter(!vocab %in% y$cue)
 
+best_match <- stringdist_join(match_set,
+                              reference_set,
+                              by = c("cue" = "vocab"),
+                              method = "jw",
+                              max_dist = 0.32,
+                              mode = "left",
+                              ignore_case = TRUE,
+                              distance_col = "dst"
+                              ) %>%
+  group_by(cue) %>%
+  slice_min(dst,n =1)
+best_match[best_match$cue == "pet (noun)",]$vocab <- "pet's name" ## only one it couldn't match
 
 ## Cue-response table for association matrix
-cue_resp <- associations_child %>%
-  select(cue = CUE, resp = RESPONSE,COND) %>%
-  filter(resp %in% cue)
 
+cue_resp <- associations_child %>%
+  mutate(cue_match = ifelse(associations_child$CUE %in% best_match$cue,best_match$vocab,as.character(associations_child$CUE))) %>% ## new column matching cues with how they appear in vocab data
+  select(cue = cue_match, resp = RESPONSE) %>% # use this as our new cue column
+  filter(resp %in% cue) 
+
+sum(unique(cue_resp$cue) %in% unique(vocab_data$CDI_Metadata_compatible)) ## 675 complete overlap
+
+## Association matrix
 adj_mat <- assocNetwork_noLoops(cue_resp)
 
 ## igraph from adjacency matrix
@@ -38,15 +54,21 @@ save(adj_mat, file = "data/child_oriented_mat.Rdata")
 save(graph, file = "data/child_oriented_graph.Rdata")
 
 ## Split individual vocabularies
-vocab_splits <- vocab_data %>%
+vocab_splits_produced <- vocab_data %>%
+  select(-interview_date) %>%
+  unique() %>%
+  filter(Produces) %>%
   group_by(subjectkey,interview_age) %>%
-  group_split()
+  group_split(.keep = TRUE)
 
 ## Construct individual association networks
-vocab_graphs <- map(vocab_splits, function(x){
-  ind_adj_mat <- adj_mat[rownames(adj_mat) %in% x$]
+vocab_graphs <- map(vocab_splits_produced, function(x){
+  ind_adj_mat <- as.matrix(adj_mat[rownames(adj_mat) %in% x$CDI_Metadata_compatible,colnames(adj_mat) %in% x$CDI_Metadata_compatible])
+  names(ind_adj_mat) <- x$subjectkey
+  return(list(id = unique(x$subjectkey), graph = graph_from_adjacency_matrix(ind_adj_mat,mode = "directed")))
 })
 
+save(vocab_graphs,file = "data/individual_networks.Rdata")
 
 
 
