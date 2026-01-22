@@ -48,24 +48,30 @@ sum(unique(cue_resp$cue) %in% unique(vocab_data$CDI_Metadata_compatible)) ## 675
 adj_mat <- assocNetwork_noLoops(cue_resp)
 
 ## igraph from adjacency matrix
-graph <- graph_from_adjacency_matrix(adj_mat)
+graph_FullNet <- graph_from_adjacency_matrix(adj_mat)
 
 save(adj_mat, file = "data/child_oriented_mat.Rdata")
-save(graph, file = "data/child_oriented_graph.Rdata")
+save(graph_FullNet, file = "data/child_oriented_graph.Rdata")
 
 ## Split individual vocabularies
+individual_entries <- vocab_data %>%
+  select(subjectkey_intAge) %>%
+  unique() %>%
+  arrange(subjectkey_intAge)
+
 vocab_splits_produced <- vocab_data %>%
   select(-interview_date) %>%
   unique() %>%
   filter(Produces) %>%
-  group_by(subjectkey,interview_age) %>%
-  group_split(.keep = TRUE)
+  group_by(subjectkey_intAge) %>%
+  group_split() %>% 
+  setNames(individual_entries$subjectkey_intAge)
+
 
 ## Construct individual association networks
 vocab_graphs <- map(vocab_splits_produced, function(x){
   ind_adj_mat <- as.matrix(adj_mat[rownames(adj_mat) %in% x$CDI_Metadata_compatible,colnames(adj_mat) %in% x$CDI_Metadata_compatible])
-  names(ind_adj_mat) <- x$subjectkey
-  return(list(id = unique(x$subjectkey), graph = graph_from_adjacency_matrix(ind_adj_mat,mode = "directed")))
+  return(list(graph = graph_from_adjacency_matrix(ind_adj_mat,mode = "directed")))
 })
 
 save(vocab_graphs,file = "data/individual_networks.Rdata")
