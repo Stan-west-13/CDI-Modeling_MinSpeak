@@ -6,6 +6,11 @@ min_speak_samp <- read_rds("data/CDI_multiple_timpoints.rds")
 load("data/ASD_all_GM.Rdata")
 cdi <- read_rds("data/cdi-metadata.rds")
 
+## Load Letti data all WG forms
+d_letti <- read.csv("data/LSEL_CDI_new_mod_for_script.csv")
+
+
+
 ## Making sure WG and WS have the same CDI-compatible lemmas
 sum(unique(ASD_all$CDI_Metadata_compatible[ASD_all$form == "WG"]) %in% unique(ASD_all$CDI_Metadata_compatible[ASD_all$form == "WS"]) )
 ## 395 words from WG overlap with WS, so using the CDI_Metadata_compatible column to join in CDI word IDs is feasible. 
