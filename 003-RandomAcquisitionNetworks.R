@@ -105,16 +105,16 @@ stopCluster(cl)
 
 ## Format RAN stats
 mean_RAN <- stats_ASD_RAN %>% 
-  map_dfr(., .f = rowMeans, na.rm = TRUE, .id = "subjectkey") %>%
-  rename(indegreeavg_RAN_mean = indegree_mean,
-         indegreemed_RAN_mean = indegree_median,
+  map_dfr(., .f = rowMeans, na.rm = TRUE, .id = "subjectkey_intAge") %>%
+  rename(indegreeavg_RAN_mean = indegreeavg,
+         indegreemed_RAN_mean = indegreemed,
          clustcoef_RAN_mean = clustcoef,
          meandist_RAN_mean = meandist)
 
 sd_RAN <- stats_ASD_RAN %>% 
-  map_dfr(., .f = row_SD,  .id = "subjectkey") %>%
-  rename(indegreeavg_RAN_sd = indegree_mean,
-         indegreemed_RAN_sd = indegree_median,
+  map_dfr(., .f = row_SD,  .id = "subjectkey_intAge") %>%
+  rename(indegreeavg_RAN_sd = indegreeavg,
+         indegreemed_RAN_sd = indegreemed,
          clustcoef_RAN_sd = clustcoef,
          meandist_RAN_sd = meandist)
 

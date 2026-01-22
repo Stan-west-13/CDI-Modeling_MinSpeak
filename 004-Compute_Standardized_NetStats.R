@@ -10,7 +10,7 @@ load("data/individual_networks.Rdata")
 ## Compute true netstats
 true_stats <- map_dfr(vocab_graphs, function(x){
   network_stats(x$graph)
-}, .id = "subjectkey")
+}, .id = "subjectkey_intAge")
 
 
 z <- function(x){
@@ -25,11 +25,18 @@ all_Netstats_z <- true_stats %>%
                names_sep = "_") %>%
   mutate(source = ifelse(is.na(source), "truenet", source),
          stat = ifelse(is.na(stat),"truestat",stat)) %>%
-  group_by(subjectkey,metric) %>%
+  group_by(subjectkey_intAge,metric) %>%
   mutate(z = (value[stat == "truestat"] - value[stat == "mean"])/value[stat == "sd"])
 
 
 write_rds(all_Netstats_z, "data/all_Netstats_z.rds")
+
+
+## Join in metadata
+vocab <- readRDS("data/all_minspeak.rds")
+all_Netstats_z_meta <- all_Netstats_z %>%
+  left_join(unique(select(vocab, subjectkey_intAge, interview_age, nProduced, form, group)), by = c("subjectkey" = "subjectkey_intAge"))
+
 
 
 
