@@ -22,3 +22,8 @@ ggplot(model_df, aes(x = nProduced, y = z,color = group))+
   facet_wrap(~metric)
 
 
+ggplot(model_df, aes(x = interview_age, y = z,color = group))+
+  geom_point() +
+  geom_smooth(method = "loess")+
+  facet_wrap(~metric)
+
