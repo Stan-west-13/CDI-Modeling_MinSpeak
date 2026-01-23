@@ -11,7 +11,7 @@ source("R/assocNetwork.R")
 
 ## Load vocabulary and association data
 load("data/associations-child.Rdata")
-vocab_data <- read_rds("data/all_minspeak.rds")
+vocab_data <- read_rds("data/combined_CDILetti.rds")
 
 ## Resolve inconsistencies between cues/CDI
 x <- data.frame(vocab = unique(vocab_data$CDI_Metadata_compatible)) ## Unique Vocab words
@@ -55,14 +55,17 @@ save(graph_FullNet, file = "data/child_oriented_graph.Rdata")
 
 ## Split individual vocabularies
 individual_entries <- vocab_data %>%
-  select(subjectkey_intAge) %>%
+  ungroup() %>%
+  select(subjectkey_intAge,nProduced,Produces) %>%
+  filter(Produces, nProduced >=3 ) %>%
+  select(-Produces,-nProduced) %>%
   unique() %>%
   arrange(subjectkey_intAge)
 
 vocab_splits_produced <- vocab_data %>%
   select(-interview_date) %>%
   unique() %>%
-  filter(Produces) %>%
+  filter(Produces, nProduced >= 3) %>%
   group_by(subjectkey_intAge) %>%
   group_split() %>% 
   setNames(individual_entries$subjectkey_intAge)

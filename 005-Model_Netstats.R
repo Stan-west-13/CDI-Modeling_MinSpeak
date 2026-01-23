@@ -34,8 +34,9 @@ ggplot(model_df, aes(x = interview_age, y = z,color = group))+
   geom_smooth(method = "loess")+
   facet_wrap(~metric)
 
-## Plot nProduced with polynomial regress 
+## Plot nProduced with polynomial regress http://127.0.0.1:37427/graphics/6d50ed64-22a8-4f90-816d-c3d32f901626.png
 ggplot(model_df %>% filter(!group == "mdl"), aes(x = nProduced, y = z,color = group))+
   #geom_point() +
   geom_smooth(method = "lm", formula = y~poly(x,3))+
   facet_wrap(~metric)
+

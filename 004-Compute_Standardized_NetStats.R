@@ -33,7 +33,7 @@ write_rds(all_Netstats_z, "data/all_Netstats_z.rds")
 
 
 ## Join in metadata
-vocab <- readRDS("data/all_minspeak.rds")
+vocab <- readRDS("data/combined_CDILetti.rds")
 all_Netstats_z_meta <- all_Netstats_z %>%
   left_join(unique(select(vocab, subjectkey_intAge, interview_age, nProduced, form, group)))
 
