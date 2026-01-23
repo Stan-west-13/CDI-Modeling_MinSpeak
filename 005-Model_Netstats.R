@@ -8,7 +8,7 @@ d <- read_rds("data/all_Netstats_z_meta.rds")
 ## Grab relevant columns
 
 model_df <- d %>%
-  select(subjectkey_intAge, metric, form,group,interview_age,nProduced, z) %>%
+  select(subjectkey_intAge, metric, form,group,interview_age,nProduced,source, z) %>%
   unique()
 split_mods <- split(model_df, model_df$metric)
 
@@ -23,7 +23,7 @@ map(split_mods, function(x){
 })
 
 ## Plot by nProduced
-ggplot(model_df, aes(x = nProduced, y = z,color = group))+
+ggplot(model_df, aes(x = nProduced, y = z,color = group,shape = source))+
   geom_point() +
   geom_smooth(method = "loess")+
   facet_wrap(~metric)

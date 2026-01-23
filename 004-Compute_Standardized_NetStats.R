@@ -20,10 +20,10 @@ z <- function(x){
 all_Netstats_z <- true_stats %>% 
   left_join(ran_stats) %>%
   pivot_longer(cols = starts_with(c("indegree","clustcoef","meandist")),
-               names_to = c("metric","source","stat"),
+               names_to = c("metric","origin","stat"),
                values_to = "value",
                names_sep = "_") %>%
-  mutate(source = ifelse(is.na(source), "truenet", source),
+  mutate(origin = ifelse(is.na(origin), "truenet", origin),
          stat = ifelse(is.na(stat),"truestat",stat)) %>%
   group_by(subjectkey_intAge,metric) %>%
   mutate(z = (value[stat == "truestat"] - value[stat == "mean"])/value[stat == "sd"])
@@ -35,7 +35,7 @@ write_rds(all_Netstats_z, "data/all_Netstats_z.rds")
 ## Join in metadata
 vocab <- readRDS("data/combined_CDILetti.rds")
 all_Netstats_z_meta <- all_Netstats_z %>%
-  left_join(unique(select(vocab, subjectkey_intAge, interview_age, nProduced, form, group)))
+  left_join(unique(select(vocab, subjectkey_intAge, interview_age, nProduced, form, group,source)))
 
 saveRDS(all_Netstats_z_meta, "data/all_Netstats_z_meta.rds")
 
