@@ -1,0 +1,80 @@
+---
+title: "Standardized Network Analysis"
+author: "Stanley West"
+format: 
+  revealjs:
+    scrollable: true
+    smaller: true
+---
+
+---
+
+editor: visual
+execute: 
+  fig-width: 12
+  fig-height: 6
+  fig-align: center
+  out-width: "90%"
+---
+
+# The Data {.smaller .scrollable}
+
+-   Up to this point, individual lexical networks have been constructed for each child, with edges drawn according to forward association (i.e., cue -\> response) relationships.
+    -   Network statistics including in-degree (number of incoming connections), global clustering coefficient (ratio of number of triangles to the number of possible triangles), mean average shortest path length (ASPL, average edge distance between nodes) were computed for each child.
+-   These values were standardized according to 1,000 individualized pseudo-random acquisition networks for each child where the number of nodes as well as the number of nouns, verbs, and other words were matched to the child's vocabulary.
+
+```{r,echo = FALSE}
+library(tidyverse)
+library(ggplot2)
+library(purrr)
+
+d_netstats <- read_rds("data/all_Netstats_z_meta.rds") %>%
+  mutate(metric_plot = factor(metric, 
+                              levels = c("indegreemed","indegreeavg","clustcoef","meandist"),
+                              labels = c("Median_Indegree", "Average_Indegree","Clustering_Coefficient","Mean Distance")),
+         group = factor(group, levels = c("yng", "mdl", "old")))
+
+matched_pps <- read_rds("data/matched_groups_single_timepoint.rds")
+
+
+
+```
+
+## Plotting unmatched statistic distributions over production
+
+-   Distributions across the unmatched samples look similar, especially at smaller vocabularies.
+
+```{r}
+
+ggplot(d_netstats %>% 
+         filter(form == "WS"), aes(x = nProduced, y = z, color = group))+
+  geom_point() +
+  facet_grid(~metric_plot)+
+  geom_smooth(method = "loess")+
+  theme_bw()+
+  labs(title = "Unmatched Statistic Distrubution Over Production - Words & Sentences",
+       x = "Productive Vocabulary",
+       y = "Z-scored Network Statistic")
+
+ggplot(d_netstats %>% 
+         filter(form == "WG"), aes(x = nProduced, y = z, color = group))+
+  geom_point() +
+  facet_grid(~metric_plot)+
+  geom_smooth(method = "loess")+
+  theme_bw()+
+  labs(title = "Unmatched Statistic Distrubution Over Production - Words & Gestures",
+       x = "Productive Vocabulary",
+       y = "Z-scored Network Statistic")
+
+
+
+ggplot(d_netstats , aes(x = group, y = z, color = group))+
+  geom_violin() +
+  geom_boxplot(width = 0.2, fill = "lightgrey")+
+  facet_grid(~metric_plot)+
+  theme_bw()+
+  labs(title = "Unmatched Statistic Boxplots Over Group ",
+       x = "Group",
+       y = "Z-scored Network Statistic")
+
+```
