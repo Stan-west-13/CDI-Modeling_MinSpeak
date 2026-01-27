@@ -5,23 +5,25 @@ format:
   revealjs:
     scrollable: true
     smaller: true
----
-
----
-
-editor: visual
-execute: 
-  fig-width: 12
-  fig-height: 6
-  fig-align: center
-  out-width: "90%"
+editor: 
+  markdown: 
+    wrap: 72
 ---
 
 # The Data {.smaller .scrollable}
 
--   Up to this point, individual lexical networks have been constructed for each child, with edges drawn according to forward association (i.e., cue -\> response) relationships.
-    -   Network statistics including in-degree (number of incoming connections), global clustering coefficient (ratio of number of triangles to the number of possible triangles), mean average shortest path length (ASPL, average edge distance between nodes) were computed for each child.
--   These values were standardized according to 1,000 individualized pseudo-random acquisition networks for each child where the number of nodes as well as the number of nouns, verbs, and other words were matched to the child's vocabulary.
+-   Up to this point, individual lexical networks have been constructed
+    for each child, with edges drawn according to forward association
+    (i.e., cue -\> response) relationships.
+    -   Network statistics including in-degree (number of incoming
+        connections), global clustering coefficient (ratio of number of
+        triangles to the number of possible triangles), mean average
+        shortest path length (ASPL, average edge distance between nodes)
+        were computed for each child.
+-   These values were standardized according to 1,000 individualized
+    pseudo-random acquisition networks for each child where the number
+    of nodes as well as the number of nouns, verbs, and other words were
+    matched to the child's vocabulary.
 
 ```{r,echo = FALSE}
 library(tidyverse)
@@ -40,9 +42,39 @@ matched_pps <- read_rds("data/matched_groups_single_timepoint.rds")
 
 ```
 
-## Plotting unmatched statistic distributions over production
+## Overall Statistic Trajectories Over Vocabulary Size and Age {.smaller .scrollable}
 
--   Distributions across the unmatched samples look similar, especially at smaller vocabularies.
+```{r}
+
+ggplot(d_netstats %>% 
+         filter(origin == "truenet"&stat == "truestat"), aes(x = nProduced, y = value))+
+  geom_point()+
+  geom_smooth(method = "loess")+
+  facet_grid(~metric_plot,scales = "free_y")+
+  theme_bw()+
+  labs(title = "True Scores Across Vocabuary")
+
+ggplot(d_netstats %>% 
+         filter(origin == "RAN"&stat == "mean"), aes(x = nProduced, y = value))+
+  geom_point()+
+  geom_smooth(method = "loess")+
+  facet_grid(~metric_plot)+
+  theme_bw()+
+  labs(title = "RAN Scores Across Vocabuary")
+
+ggplot(d_netstats, aes(x = nProduced, y = z))+
+  geom_point()+
+  geom_smooth(method = "loess")+
+  facet_grid(~metric_plot)+
+  theme_bw()+
+  labs(title = "Standardized Scores across vocabuary")
+```
+
+## Plotting unmatched statistic distributions over production {.smaller .scrollable}
+
+-   Distributions across the unmatched samples look similar, especially
+    at smaller vocabularies.
+-   However, this is still collapsed across forms.
 
 ```{r}
 
@@ -76,5 +108,35 @@ ggplot(d_netstats , aes(x = group, y = z, color = group))+
   labs(title = "Unmatched Statistic Boxplots Over Group ",
        x = "Group",
        y = "Z-scored Network Statistic")
+
+```
+
+# Words and Gestures Analyses Only
+
+-   Youngest administration
+
+-   Only allowing networks of size 3 - 349 words.
+
+## Filtering to Words and Gestures
+
+```{r,echo = TRUE}
+d_WG <- d_netstats %>%
+  filter(form == "WG",
+         nProduced >= 3 & nProduced <= 349) %>%
+  group_by(subjectkey) %>%
+  slice_min(interview_age,n = 1)
+
+d_WG %>%
+  select(subjectkey,interview_age,nProduced,group) %>%
+  unique() %>%
+  group_by(group) %>%
+  summarize(n = n(),
+            mean_age = mean(interview_age),
+            mean_produced = mean(nProduced),
+            sd_age = sd(interview_age),
+            sd_produced = sd(nProduced)) %>%
+  as.data.frame()
+  
+
 
 ```
