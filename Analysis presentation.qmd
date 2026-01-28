@@ -5,6 +5,11 @@ format:
   revealjs:
     scrollable: true
     smaller: true
+    fig-width: 24
+    fig-height: 12
+    fig-align: center
+    
+    
 editor: 
   markdown: 
     wrap: 72
@@ -51,7 +56,7 @@ ggplot(d_netstats %>%
   geom_point()+
   geom_smooth(method = "loess")+
   facet_grid(~metric_plot,scales = "free_y")+
-  theme_bw()+
+  theme_bw(base_size = 24)+
   labs(title = "True Scores Across Vocabuary")
 
 ggplot(d_netstats %>% 
@@ -59,14 +64,14 @@ ggplot(d_netstats %>%
   geom_point()+
   geom_smooth(method = "loess")+
   facet_grid(~metric_plot)+
-  theme_bw()+
+  theme_bw(base_size = 24)+
   labs(title = "RAN Scores Across Vocabuary")
 
 ggplot(d_netstats, aes(x = nProduced, y = z))+
   geom_point()+
   geom_smooth(method = "loess")+
   facet_grid(~metric_plot)+
-  theme_bw()+
+  theme_bw(base_size = 24)+
   labs(title = "Standardized Scores across vocabuary")
 ```
 
@@ -83,7 +88,7 @@ ggplot(d_netstats %>%
   geom_point() +
   facet_grid(~metric_plot)+
   geom_smooth(method = "loess")+
-  theme_bw()+
+  theme_bw(base_size = 24)+
   labs(title = "Unmatched Statistic Distrubution Over Production - Words & Sentences",
        x = "Productive Vocabulary",
        y = "Z-scored Network Statistic")
@@ -93,7 +98,7 @@ ggplot(d_netstats %>%
   geom_point() +
   facet_grid(~metric_plot)+
   geom_smooth(method = "loess")+
-  theme_bw()+
+  theme_bw(base_size = 24)+
   labs(title = "Unmatched Statistic Distrubution Over Production - Words & Gestures",
        x = "Productive Vocabulary",
        y = "Z-scored Network Statistic")
@@ -104,7 +109,7 @@ ggplot(d_netstats , aes(x = group, y = z, color = group))+
   geom_violin() +
   geom_boxplot(width = 0.2, fill = "lightgrey")+
   facet_grid(~metric_plot)+
-  theme_bw()+
+  theme_bw(base_size = 24)+
   labs(title = "Unmatched Statistic Boxplots Over Group ",
        x = "Group",
        y = "Z-scored Network Statistic")
@@ -146,22 +151,35 @@ d_WG %>%
 
 ```
 
-## Match groups on vocabulary size
+## Match groups on vocabulary size {.scrollable .smaller}
 
-```{r}
+-   Matching to the minimally speaking group yields $n = 32$ for each
+    group, $t(61.993) = -0.039$, $p = 0.969$
+
+```{r, echo =  FALSE,fig.fullwidth=TRUE,fig.width=24, fig.height=12}
 
 match_lst <- d_WG %>%
-  select(subjectkey, interview_age,nProduced, group_two) %>%
+  select(subjectkey_intAge, interview_age,nProduced, group_two) %>%
   unique() %>%
   matchit(group_two ~ nProduced, data = ., method = "optimal", distance = "glm")
 
-summary(match_lst)
-
-plot(match_lst, type = "density", interactive = TRUE)
-
 matched_df <- d_WG %>%
-  filter(subjectkey %in% match.data(match_lst)$subjectkey)
+  filter(subjectkey_intAge %in% match.data(match_lst)$subjectkey_intAge)
 
-t.test(unique(matched_df$nProduced[matched_df$group_two == "non_minspeak"]),
-       unique(matched_df$nProduced[matched_df$group_two == "minspeak"]))
+matched_df %>%
+  select(subjectkey,nProduced,group_two) %>%
+  unique() %>%
+  t.test(nProduced~group_two, data = .)
+
+
+
+
+
+```
+
+```{r, echo =  FALSE,fig.width=48, fig.height=12, fig.fullwidth=TRUE}
+
+ggplot(matched_df, aes(x = nProduced, color = group_two))+
+  geom_density(size = 2)+
+  theme_bw(base_size = 52)
 ```
