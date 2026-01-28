@@ -29,7 +29,7 @@ editor:
 library(tidyverse)
 library(ggplot2)
 library(purrr)
-
+library(MatchIt)
 d_netstats <- read_rds("data/all_Netstats_z_meta.rds") %>%
   mutate(metric_plot = factor(metric, 
                               levels = c("indegreemed","indegreeavg","clustcoef","meandist"),
@@ -117,6 +117,10 @@ ggplot(d_netstats , aes(x = group, y = z, color = group))+
 
 -   Only allowing networks of size 3 - 349 words.
 
+-   Collapsing the middle-aged group (48 - 70 months old) and the
+    youngest group (16 - 42 months) to create a non-minimally speaking
+    and a minimally speaking group.
+
 ## Filtering to Words and Gestures
 
 ```{r,echo = TRUE}
@@ -124,12 +128,13 @@ d_WG <- d_netstats %>%
   filter(form == "WG",
          nProduced >= 3 & nProduced <= 349) %>%
   group_by(subjectkey) %>%
-  slice_min(interview_age,n = 1)
+  slice_min(interview_age,n = 1) %>%
+  mutate(group_two = as.factor(ifelse(group == "yng"|group =="mdl", "non_minspeak","minspeak")))
 
 d_WG %>%
-  select(subjectkey,interview_age,nProduced,group) %>%
+  select(subjectkey,interview_age,nProduced,group_two) %>%
   unique() %>%
-  group_by(group) %>%
+  group_by(group_two) %>%
   summarize(n = n(),
             mean_age = mean(interview_age),
             mean_produced = mean(nProduced),
@@ -139,4 +144,24 @@ d_WG %>%
   
 
 
+```
+
+## Match groups on vocabulary size
+
+```{r}
+
+match_lst <- d_WG %>%
+  select(subjectkey, interview_age,nProduced, group_two) %>%
+  unique() %>%
+  matchit(group_two ~ nProduced, data = ., method = "optimal", distance = "glm")
+
+summary(match_lst)
+
+plot(match_lst, type = "density", interactive = TRUE)
+
+matched_df <- d_WG %>%
+  filter(subjectkey %in% match.data(match_lst)$subjectkey)
+
+t.test(unique(matched_df$nProduced[matched_df$group_two == "non_minspeak"]),
+       unique(matched_df$nProduced[matched_df$group_two == "minspeak"]))
 ```
