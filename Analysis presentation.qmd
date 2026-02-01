@@ -85,9 +85,9 @@ ggplot(d_netstats, aes(x = nProduced, y = z))+
 
 ggplot(d_netstats %>% 
          filter(form == "WS"), aes(x = nProduced, y = z, color = group))+
-  geom_point() +
   facet_grid(~metric_plot)+
-  geom_smooth(method = "loess")+
+  geom_smooth(method = "lm",
+              formula = y~poly(x,3))+
   theme_bw(base_size = 24)+
   labs(title = "Unmatched Statistic Distrubution Over Production - Words & Sentences",
        x = "Productive Vocabulary",
@@ -97,7 +97,8 @@ ggplot(d_netstats %>%
          filter(form == "WG"), aes(x = nProduced, y = z, color = group))+
   geom_point() +
   facet_grid(~metric_plot)+
-  geom_smooth(method = "loess")+
+  geom_smooth(method = "lm",
+              formula = y~poly(x,3))+
   theme_bw(base_size = 24)+
   labs(title = "Unmatched Statistic Distrubution Over Production - Words & Gestures",
        x = "Productive Vocabulary",
@@ -113,6 +114,117 @@ ggplot(d_netstats , aes(x = group, y = z, color = group))+
   labs(title = "Unmatched Statistic Boxplots Over Group ",
        x = "Group",
        y = "Z-scored Network Statistic")
+
+```
+
+## First Administrations - Both Forms
+
+-   Including both WS and WG, but only taking the first administration
+    for a child results in 222 words and sentences and 48 words and
+    gestures forms.
+
+```{r}
+d_netstats_first <- d_netstats %>%
+  mutate(group_two = as.factor(ifelse(group == "yng"|group =="mdl", "non_minspeak","minspeak"))) %>%
+  filter(origin == "truenet") %>%
+  group_by(subjectkey) %>%
+  slice_min(interview_age, n = 1 )
+
+d_netstats_first %>%
+  select(subjectkey,group_two,nProduced, interview_age) %>%
+  unique() %>%
+  group_by(group_two) %>%
+  summarize(n = n(),
+            mean_nProduced = mean(nProduced),
+            sd_nProduced = sd(nProduced),
+            mean_age = mean(interview_age),
+            sd_age = sd(interview_age))
+
+
+
+
+```
+
+## Matching to the minimally speaking group.
+
+```{r}
+match_lst_all <- d_netstats_first %>%
+  select(subjectkey_intAge, interview_age,nProduced, group_two) %>%
+  unique() %>%
+  matchit(group_two ~ nProduced, data = ., method = "optimal", distance = "glm")
+
+matched_df_all <- d_netstats_first %>%
+  filter(subjectkey_intAge %in% match.data(match_lst_all)$subjectkey_intAge)
+
+matched_df_all %>%
+  select(subjectkey,nProduced,group_two) %>%
+  unique() %>%
+  t.test(nProduced~group_two, data = .)
+
+```
+
+-   Keeping both WS and WG forms, retains 17 in the old group, now will
+    be able to match to $n = 48$ per group.
+
+```{r, echo =  FALSE,fig.width=48, fig.height=12, fig.fullwidth=TRUE}
+
+ggplot(matched_df_all, aes(x = nProduced, color = group_two))+
+  geom_density(size = 2)+
+  theme_bw(base_size = 52)
+
+ggplot(matched_df_all, aes(x = nProduced, , y = interview_age,color = group_two))+
+  geom_point(size = 13)+
+  theme_bw(base_size = 52)
+
+
+```
+
+## Run Linear Models {.smaller .scrollable}
+
+-   Linear models were run regressing
+    $network_{statistic} \sim (linear_{nproduced} + quadratic_{nproduced} +cubic_{nproduced}) * age$
+
+-   Number of words produced was re-factored to account for third-order
+    polynomial trends in the network statistics
+
+```{r}
+
+nProduced_poly_all <- matched_df_all %>%
+  ungroup() %>%
+  select(nProduced) %>%
+  unique() %>%
+  cbind(poly(.$nProduced,3)) %>%
+  rename(linear = "1",
+         quadratic = "2",
+         cubic = "3")
+
+matched_df_poly_all <- matched_df_all %>%
+  left_join(nProduced_poly_all) %>%
+  filter(origin == "truenet")
+
+d_splits_all <- split(matched_df_poly_all,matched_df_poly_all$metric)
+
+x <- map(d_splits_all, function(x){
+  lm(z ~ (linear+quadratic+cubic)*interview_age, data = x)
+})
+
+lapply(x, summary)
+
+
+```
+
+## Plot the Trends
+
+```{r}
+
+ggplot(matched_df_poly_all %>% 
+         filter(origin == "truenet"), aes(x = nProduced, y = z, color = group_two))+
+  geom_point()+
+  theme_bw(base_size = 24) +
+  geom_smooth(method = "lm",
+              formula = y ~ poly(x,3))+
+  facet_wrap(~metric_plot)
+
 
 ```
 
@@ -182,4 +294,56 @@ matched_df %>%
 ggplot(matched_df, aes(x = nProduced, color = group_two))+
   geom_density(size = 2)+
   theme_bw(base_size = 52)
+
+ggplot(matched_df, aes(x = nProduced, , y = interview_age,color = group_two))+
+  geom_point(size = 13)+
+  theme_bw(base_size = 52)
+
+
+
+
 ```
+
+## Run Linear Models
+
+-   Linear models were run regressing
+    $network_{statistic} \sim (linear_{nproduced} + quadratic_{nproduced} +cubic_{nproduced}) * age$
+
+-   Number of words produced was re-factored to account for third-order
+    polynomial trends in the network statistics
+
+    ```{r}
+
+    nProduced_poly <- matched_df %>%
+      ungroup() %>%
+      select(nProduced) %>%
+      unique() %>%
+      cbind(poly(.$nProduced,3)) %>%
+      rename(linear = "1",
+             quadratic = "2",
+             cubic = "3")
+
+    matched_df_poly <- matched_df %>%
+      left_join(nProduced_poly) %>%
+      filter(origin == "truenet")
+
+    d_splits <- split(matched_df_poly,matched_df_poly$metric)
+
+    x <- map(d_splits, function(x){
+      lm(z ~ (linear+quadratic+cubic)*interview_age, data = x)
+    })
+
+    lapply(x, summary)
+
+
+    ```
+
+    ```{r}
+    ggplot(matched_df %>% 
+             filter(origin == "truenet"), aes(x = nProduced, y = z, color = group_two))+
+      geom_point()+
+      theme_bw(base_size = 24) +
+      geom_smooth(method = "lm",
+                  formula = y ~ poly(x,3))+
+      facet_wrap(~metric_plot)
+    ```

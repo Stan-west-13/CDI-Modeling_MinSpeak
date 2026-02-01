@@ -13,7 +13,7 @@ source("R/assocNetwork.R")
 load("data/associations-child.Rdata")
 vocab_data <- read_rds("data/combined_CDILetti.rds")
 
-## Resolve inconsistencies between cues/CDI
+## Resolve inconsistencies between cues/CDI: Association cues in the CoxHae set are slightly different from CDI.
 x <- data.frame(vocab = unique(vocab_data$CDI_Metadata_compatible)) ## Unique Vocab words
 y <- data.frame(cue = as.character(unique(associations_child$CUE))) ## Unique cues
 match_set <- y %>%
