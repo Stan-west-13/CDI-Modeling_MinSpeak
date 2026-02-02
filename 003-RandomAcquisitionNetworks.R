@@ -28,7 +28,9 @@ row_SD <- function(d){
 ## Individual graphs
 load("data/individual_networks.Rdata")
 load("data/child_oriented_graph.Rdata")
+load("data/child_oriented_graph_wg.Rdata")
 cdi <- readRDS("data/cdi-metadata.rds")
+cdi_WG <- readRDS("data/cdi_WG.rds")
 cdi$POS <- ifelse(cdi$lexical_class == "nouns"|cdi$lexical_class=="verbs",cdi$lexical_class, "other")
 
 
@@ -40,21 +42,21 @@ ran_list <- map(vocab_graphs, function(x){
     left_join(select(cdi,CDI_Metadata_compatible,POS), by = c("word" = "CDI_Metadata_compatible")) 
   POS <- table(factor(POS$POS, levels = c("nouns","other","verbs")))
   
-  return(list(vocab = vocab,vocab_size = vocab_size, graph = x$graph, POS = POS))                  
+  return(list(vocab = vocab,vocab_size = vocab_size, graph = x$graph, POS = POS, form = x$form))                  
 })
 
 POS_numbers_ASD <- map(ran_list,function(x){
-  return(x$POS)
+  return(list(POS = x$POS, form = x$form))
 })
 
 
-POS_numbers_df <- map_dfr(POS_numbers_ASD, .f = data.frame, .id = "name") %>%
+POS_numbers_df <- map_dfr(.x = POS_numbers_ASD, .f = data.frame(.x$POS), .id = "name") %>%
   pivot_wider(id_cols = name,
               values_from = Freq,
               names_from = Var1)
 
 
-## POS Vertices
+## POS Vertices WS
 vertices_CoxHae_toddler <- data.frame(vId_CoxHae_toddler = seq_len(vcount(graph_FullNet)),
                                       CDI_Metadata_compatible = names(V(graph_FullNet))) ## Make vertices IDs
 
@@ -64,11 +66,27 @@ cdi <- merge(cdi, vertices_CoxHae_toddler, by = "CDI_Metadata_compatible", all.x
 
 vertices_CoxHae_toddler$vId_CoxHae_toddler <- as.numeric(vertices_CoxHae_toddler$vId_CoxHae_toddler) ## Convert to numeric
 vertices_POS_child <- subset_CDI_NAs(cdi$POS, cdi$vId_CoxHae_toddler, cdi$num_item_id)
+
 save(vertices_POS_child, file = "data/vertices_POS_child.Rdata")
+
+## POS Vertices WG
+vertices_CoxHae_toddler_wg <- data.frame(vId_CoxHae_toddler_wg = seq_len(vcount(graph_WG)),
+                                      CDI_Metadata_compatible = names(V(graph_WG))) ## Make vertices IDs
+
+vertices_POS_child_wg <- merge(vertices_CoxHae_toddler_wg, select(cdi, c("CDI_Metadata_compatible", "POS"))) ## Merge in POS
+
+cdi <- merge(cdi, vertices_CoxHae_toddler_wg, by = "CDI_Metadata_compatible", all.x = TRUE) ## Merge vertices into CDI
+
+vertices_CoxHae_toddler_wg$vId_CoxHae_toddler <- as.numeric(vertices_CoxHae_toddler_wg$vId_CoxHae_toddler_wg) ## Convert to numeric
+vertices_POS_child_wg <- subset_CDI_NAs(cdi$POS, cdi$vId_CoxHae_toddler_wg, cdi$num_item_id)
+
+save(vertices_POS_child_wg, file = "data/vertices_POS_child_wg.Rdata")
+
+
 
 ## RAN Simulations
 load("data/vertices_POS_child.Rdata")
-
+load("data/vertices_POS_child_wg.Rdata")
 # Define the cluster, using all by two cores on the system. This should give
 # you 30 "workers". Before you do this, start "top" in another terminal window
 # to see what happens.
@@ -83,14 +101,14 @@ clusterSetRNGStream(cl)
 # Export everything needed to run the operation, including any data or
 # functions you have defined. If a function you have written relies on a
 # package, make sure to use the package::function referencing.
-invisible(clusterExport(cl, c("vocab_graphs", "graph_FullNet", "vertices_POS_child",
+invisible(clusterExport(cl, c("vocab_graphs", "graph_FullNet", "vertices_POS_child","vertices_POS_child_wg",
                               "balanced_RAN_network", "network_stats", "balanced_RAN_stats", "multiSample", "indegree_igraph")))
 
 # Finally, run with parLapply. Running 1000 replications takes less than two minutes.
 starttime <- proc.time()
 stats_ASD_RAN <- parLapply(cl, POS_numbers_ASD,
-                           function(n,G,POS) replicate(1000, balanced_RAN_stats(n,G,POS)),
-                           G = graph_FullNet, POS = as.factor(vertices_POS_child$POS))
+                           function(n,G,G_WG,POS,POS_wg) replicate(1000, balanced_RAN_stats(n,G,G_WG,POS,POS_wg)),
+                           G = graph_FullNet,G_WG = graph_WG, POS = as.factor(vertices_POS_child$POS),POS_wg = as.factor(vertices_POS_child_wg$POS))
 
 save(stats_ASD_RAN, file = "data/Child_Stats_ASD_balRAN_1000.Rdata")
 

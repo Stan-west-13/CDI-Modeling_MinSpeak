@@ -30,12 +30,21 @@ multiSample <- function(n, x, fct, simplify2vec = FALSE) {
   return(if(simplify2vec) unname(do.call(c, y)) else y)
 }
 
-balanced_RAN_network <- function(vocab_size, G, POS) {
-  env_size <- igraph::vcount(G)
-  assertthat::are_equal(env_size, length(POS))
-  assertthat::are_equal(nlevels(POS), length(vocab_size))
-  ix <- multiSample(vocab_size, seq_len(env_size), POS, simplify2vec = TRUE)
-  return(igraph::induced_subgraph(G, ix))
+balanced_RAN_network <- function(vocab_size, G,G_WG, POS, POS_WG) {
+  if (unique(vocab_size$form == "WS")){
+    env_size <- igraph::vcount(G)
+    assertthat::are_equal(env_size, length(POS))
+    assertthat::are_equal(nlevels(POS), length(vocab_size))
+    ix <- multiSample(vocab_size$POS, seq_len(env_size), POS, simplify2vec = TRUE)
+    return(igraph::induced_subgraph(G, ix))
+  }
+  else {
+    env_size <- igraph::vcount(G_WG)
+    assertthat::are_equal(env_size, length(POS_WG))
+    assertthat::are_equal(nlevels(POS_WG), length(vocab_size$POS))
+    ix_wg <- multiSample(vocab_size$POS, seq_len(env_size), POS_WG, simplify2vec = TRUE)
+    return(igraph::induced_subgraph(G_WG, ix_wg))
+  }
 }
 
 network_stats <- function(g) {
@@ -45,7 +54,7 @@ network_stats <- function(g) {
            meandist=igraph::mean_distance(g)))
 }
 
-balanced_RAN_stats <- function(vocab_size, G, POS) {
-  return(network_stats(balanced_RAN_network(vocab_size, G, POS)))
+balanced_RAN_stats <- function(vocab_size, G,G_WG, POS, POS_WG) {
+  return(network_stats(balanced_RAN_network(vocab_size, G,G_WG, POS, POS_WG)))
 }
 

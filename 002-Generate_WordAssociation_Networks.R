@@ -12,7 +12,7 @@ source("R/assocNetwork.R")
 ## Load vocabulary and association data
 load("data/associations-child.Rdata")
 vocab_data <- read_rds("data/combined_CDILetti.rds")
-
+cdi_WG <- read_rds("data/cdi_WG.rds")
 ## Resolve inconsistencies between cues/CDI: Association cues in the CoxHae set are slightly different from CDI.
 x <- data.frame(vocab = unique(vocab_data$CDI_Metadata_compatible)) ## Unique Vocab words
 y <- data.frame(cue = as.character(unique(associations_child$CUE))) ## Unique cues
@@ -47,11 +47,27 @@ sum(unique(cue_resp$cue) %in% unique(vocab_data$CDI_Metadata_compatible)) ## 675
 ## Association matrix
 adj_mat <- assocNetwork_noLoops(cue_resp)
 
+## Cue-response table for association matrix Words and gestures
+
+cue_resp_WG <- associations_child %>%
+  mutate(cue_match = ifelse(associations_child$CUE %in% best_match$cue,best_match$vocab,as.character(associations_child$CUE))) %>% ## new column matching cues with how they appear in vocab data
+  select(cue = cue_match, resp = RESPONSE) %>% # use this as our new cue column
+  filter(cue %in% cdi_WG$CDI_Metadata_compatible,
+         resp %in% cue) 
+
+sum(unique(cue_resp_WG$cue) %in% unique(vocab_data$CDI_Metadata_compatible)) ## 393 of 395 in CDI: associations don't include babysitter name and child name
+
+## Association matrix
+adj_mat_wg <- assocNetwork_noLoops(cue_resp_WG)
+
+
 ## igraph from adjacency matrix
 graph_FullNet <- graph_from_adjacency_matrix(adj_mat)
+graph_WG <- graph_from_adjacency_matrix(adj_mat_wg)
 
 save(adj_mat, file = "data/child_oriented_mat.Rdata")
 save(graph_FullNet, file = "data/child_oriented_graph.Rdata")
+save(graph_WG, file = "data/child_oriented_graph_wg.Rdata")
 
 ## Split individual vocabularies
 individual_entries <- vocab_data %>%
@@ -74,7 +90,7 @@ vocab_splits_produced <- vocab_data %>%
 ## Construct individual association networks
 vocab_graphs <- map(vocab_splits_produced, function(x){
   ind_adj_mat <- as.matrix(adj_mat[rownames(adj_mat) %in% x$CDI_Metadata_compatible,colnames(adj_mat) %in% x$CDI_Metadata_compatible])
-  return(list(graph = graph_from_adjacency_matrix(ind_adj_mat,mode = "directed")))
+  return(list(graph = graph_from_adjacency_matrix(ind_adj_mat,mode = "directed"),form = x$form))
 })
 
 save(vocab_graphs,file = "data/individual_networks.Rdata")
