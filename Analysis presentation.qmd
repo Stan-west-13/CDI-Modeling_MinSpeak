@@ -19,7 +19,9 @@ editor:
 
 -   Up to this point, individual lexical networks have been constructed
     for each child, with edges drawn according to forward association
-    (i.e., cue -\> response) relationships.
+    (i.e., cue -\> response) relationships via child-oriented word
+    association norms ([Cox & Haebig,
+    2023](https://link.springer.com/content/pdf/10.3758/s13428-022-01790-y.pdf))
     -   Network statistics including in-degree (number of incoming
         connections), global clustering coefficient (ratio of number of
         triangles to the number of possible triangles), mean average
@@ -35,6 +37,8 @@ library(tidyverse)
 library(ggplot2)
 library(purrr)
 library(MatchIt)
+library(ggh4x)
+library(plotly)
 d_netstats <- read_rds("data/all_Netstats_z_meta.rds") %>%
   mutate(metric_plot = factor(metric, 
                               levels = c("indegreemed","indegreeavg","clustcoef","meandist"),
@@ -55,15 +59,14 @@ ggplot(d_netstats %>%
          filter(origin == "truenet"&stat == "truestat"), aes(x = nProduced, y = value))+
   geom_point()+
   geom_smooth(method = "loess")+
-  facet_grid(~metric_plot,scales = "free_y")+
+  facet_grid2(~metric_plot,scales = "free_y", independent = "y")+
   theme_bw(base_size = 24)+
   labs(title = "True Scores Across Vocabuary")
-
 ggplot(d_netstats %>% 
          filter(origin == "RAN"&stat == "mean"), aes(x = nProduced, y = value))+
   geom_point()+
   geom_smooth(method = "loess")+
-  facet_grid(~metric_plot)+
+  facet_grid2(~metric_plot,scales = "free_y", independent = "y")+
   theme_bw(base_size = 24)+
   labs(title = "RAN Scores Across Vocabuary")
 
@@ -116,6 +119,11 @@ ggplot(d_netstats , aes(x = group, y = z, color = group))+
        y = "Z-scored Network Statistic")
 
 ```
+
+-   The middle group does not have any child with production past 100
+    for the words and gestures form, making it hard to compare to the
+    other groups, so we removed this group and instead will look at
+    minimally speaking vs. non-minimally speaking.
 
 ## First Administrations - Both Forms
 
@@ -182,7 +190,7 @@ ggplot(matched_df_all, aes(x = nProduced, , y = interview_age,color = group_two)
 ## Run Linear Models {.smaller .scrollable}
 
 -   Linear models were run regressing
-    $network_{statistic} \sim (linear_{nproduced} + quadratic_{nproduced} +cubic_{nproduced}) * age$
+    $network_{statistic} \sim (linear_{nproduced} + quadratic_{nproduced} +cubic_{nproduced}) * age * group$
 
 -   Number of words produced was re-factored to account for third-order
     polynomial trends in the network statistics
@@ -205,7 +213,7 @@ matched_df_poly_all <- matched_df_all %>%
 d_splits_all <- split(matched_df_poly_all,matched_df_poly_all$metric)
 
 x <- map(d_splits_all, function(x){
-  lm(z ~ (linear+quadratic+cubic)*interview_age, data = x)
+  lm(z ~ (linear+quadratic+cubic)*interview_age*group_two, data = x)
 })
 
 lapply(x, summary)
@@ -219,7 +227,7 @@ lapply(x, summary)
 
 ggplot(matched_df_poly_all %>% 
          filter(origin == "truenet"), aes(x = nProduced, y = z, color = group_two))+
-  geom_point()+
+  #geom_point()+
   theme_bw(base_size = 24) +
   geom_smooth(method = "lm",
               formula = y ~ poly(x,3))+
@@ -307,7 +315,7 @@ ggplot(matched_df, aes(x = nProduced, , y = interview_age,color = group_two))+
 ## Run Linear Models
 
 -   Linear models were run regressing
-    $network_{statistic} \sim (linear_{nproduced} + quadratic_{nproduced} +cubic_{nproduced}) * age$
+    $network_{statistic} \sim (linear_{nproduced} + quadratic_{nproduced} +cubic_{nproduced}) * age* group$
 
 -   Number of words produced was re-factored to account for third-order
     polynomial trends in the network statistics
@@ -330,7 +338,7 @@ ggplot(matched_df, aes(x = nProduced, , y = interview_age,color = group_two))+
     d_splits <- split(matched_df_poly,matched_df_poly$metric)
 
     x <- map(d_splits, function(x){
-      lm(z ~ (linear+quadratic+cubic)*interview_age, data = x)
+      lm(z ~ (linear+quadratic+cubic)*interview_age * group_two, data = x)
     })
 
     lapply(x, summary)
@@ -347,3 +355,5 @@ ggplot(matched_df, aes(x = nProduced, , y = interview_age,color = group_two))+
                   formula = y ~ poly(x,3))+
       facet_wrap(~metric_plot)
     ```
+
+# 
