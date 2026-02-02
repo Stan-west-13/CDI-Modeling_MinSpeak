@@ -353,7 +353,7 @@ ggplot(matched_df, aes(x = nProduced, , y = interview_age,color = group_two))+
     ```{r}
     ggplot(matched_df %>% 
              filter(origin == "truenet"), aes(x = nProduced, y = z, color = group_two))+
-      geom_point()+
+      #geom_point()+
       theme_bw(base_size = 24) +
       geom_smooth(method = "lm",
                   formula = y ~ poly(x,3))+
