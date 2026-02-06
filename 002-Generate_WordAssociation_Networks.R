@@ -13,6 +13,9 @@ source("R/assocNetwork.R")
 load("data/associations-child.Rdata")
 vocab_data <- read_rds("data/combined_CDILetti.rds")
 cdi_WG <- read_rds("data/cdi_WG.rds")
+noun_feats <- read.csv("data/MBCDI_concsFeats_2022-07-14.csv")
+
+
 ## Resolve inconsistencies between cues/CDI: Association cues in the CoxHae set are slightly different from CDI.
 x <- data.frame(vocab = unique(vocab_data$CDI_Metadata_compatible)) ## Unique Vocab words
 y <- data.frame(cue = as.character(unique(associations_child$CUE))) ## Unique cues
@@ -34,6 +37,23 @@ best_match <- stringdist_join(match_set,
   group_by(cue) %>%
   slice_min(dst,n =1)
 best_match[best_match$cue == "pet (noun)",]$vocab <- "pet's name" ## only one it couldn't match
+
+## 'tv' in the noun features is the only word that does not match 'TV' in the vocab data
+
+noun_feats$definition[noun_feats$definition =="tv"] <- "TV" #fixing discrepancy
+
+
+## Different feature lists
+feats_list <- split(noun_feats, noun_feats$BR_Label)
+
+
+feat_mats <- map(feats_list, function(x){
+  return(pivot_wider(as.data.frame(xtabs(~definition+Feature, data = x)),
+                     names_from = Feature,
+                     values_from = Freq))
+})
+  
+
 
 ## Cue-response table for association matrix
 
