@@ -50,10 +50,10 @@ POS_numbers_ASD <- map(ran_list,function(x){
 })
 
 
-POS_numbers_df <- map_dfr(.x = POS_numbers_ASD, .f = data.frame(.x$POS), .id = "name") %>%
-  pivot_wider(id_cols = name,
-              values_from = Freq,
-              names_from = Var1)
+# POS_numbers_df <- map_dfr(.x = POS_numbers_ASD, .f = data.frame(.x$POS), .id = "name") %>%
+#   pivot_wider(id_cols = name,
+#               values_from = Freq,
+#               names_from = Var1)
 
 
 ## POS Vertices WS

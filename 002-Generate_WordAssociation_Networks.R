@@ -4,6 +4,7 @@ library(tidyverse)
 library(igraph)
 library(purrr)
 library(fuzzyjoin)
+library(tibble)
 
 ## Association network functions
 ## Fuzzy matching packages
@@ -48,11 +49,16 @@ feats_list <- split(noun_feats, noun_feats$BR_Label)
 
 
 feat_mats <- map(feats_list, function(x){
-  return(pivot_wider(as.data.frame(xtabs(~definition+Feature, data = x)),
-                     names_from = Feature,
-                     values_from = Freq))
+  x <- pivot_wider(as.data.frame(xtabs(~definition+Feature, data = x)),
+                   names_from = Feature,
+                   values_from = Freq)
+  x <- as.matrix(column_to_rownames(x, var = "definition"))
+
+  return(list(feat_df = x, adj_mat = ifelse(x %*% t(x) > 0,1,0)))
 })
   
+
+
 
 
 ## Cue-response table for association matrix
