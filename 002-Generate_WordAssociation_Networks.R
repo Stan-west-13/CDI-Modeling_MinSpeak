@@ -53,12 +53,12 @@ feat_mats <- map(feats_list, function(x){
                    names_from = Feature,
                    values_from = Freq)
   x <- as.matrix(column_to_rownames(x, var = "definition"))
-
-  return(list(feat_df = x, adj_mat = ifelse(x %*% t(x) > 0,1,0)))
+  adj_mat <- ifelse(x %*% t(x) > 0,1,0)
+  diag(adj_mat) <- 0
+  return(list(feat_df = x, adj_mat = adj_mat, graph = graph_from_adjacency_matrix(adj_mat)))
 })
   
-
-
+save(feat_mats, file = "data/feature_graphs.Rdata")
 
 
 ## Cue-response table for association matrix
@@ -122,7 +122,13 @@ vocab_graphs <- map(vocab_splits_produced, function(x){
 save(vocab_graphs,file = "data/individual_networks.Rdata")
 
 
+ind_noun_graphs <- map(vocab_splits_produced, function(x){
+  map(feat_mats, function(y){
+    ind_adj_mat <- as.matrix(y$adj_mat[rownames(y$adj_mat) %in% x$CDI_Metadata_compatible,colnames(y$adj_mat) %in% x$CDI_Metadata_compatible])
+    return(list(graph = graph_from_adjacency_matrix(ind_adj_mat,mode = "directed"),form = x$form))
+  })
+})
 
-
+save(ind_noun_graphs,file = "data/individual_noun_networks.Rdata")
 
 
