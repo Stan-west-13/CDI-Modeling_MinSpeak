@@ -18,7 +18,9 @@ true_stats <- map_dfr(vocab_graphs, function(x){
 
 
 true_stats_N <- map_dfr(ind_noun_graphs_anyfeat, function(x){
-  network_stats(x$graph)
+  d <- network_stats(x$graph) 
+  d$nProduced <- vcount(x$graph)
+  return(d)
 }, .id = "subjectkey_intAge")
 
 
@@ -64,7 +66,7 @@ all_Netstats_z_meta <- all_Netstats_z %>%
   left_join(unique(select(vocab, subjectkey_intAge, interview_age, nProduced, form, group,source)))
 
 all_Netstats_z_meta_nouns <- all_Netstats_z_N %>%
-  left_join(unique(select(vocab, subjectkey_intAge, interview_age, nProduced, form, group,source)))
+  left_join(unique(select(vocab, subjectkey_intAge, interview_age, form, group,source)))
 
 
 saveRDS(all_Netstats_z_meta, "data/all_Netstats_z_meta.rds")
