@@ -47,6 +47,17 @@ balanced_RAN_network <- function(vocab_size, G,G_WG, POS, POS_WG) {
   }
 }
 
+
+balanced_RAN_network_noun <- function(vocab_size, G, POS) {
+    env_size <- igraph::vcount(G)
+    assertthat::are_equal(env_size, length(POS))
+    assertthat::are_equal(nlevels(POS), length(vocab_size))
+    ix <- multiSample(vocab_size$POS, seq_len(env_size), POS, simplify2vec = TRUE)
+    return(igraph::induced_subgraph(G, ix))
+}
+
+
+
 network_stats <- function(g) {
   return(c(indegreemed=median(indegree_igraph(g)), 
            indegreeavg=mean(indegree_igraph(g)),
@@ -58,3 +69,6 @@ balanced_RAN_stats <- function(vocab_size, G,G_WG, POS, POS_WG) {
   return(network_stats(balanced_RAN_network(vocab_size, G,G_WG, POS, POS_WG)))
 }
 
+balanced_RAN_stats_noun <- function(vocab_size, G, POS) {
+  return(network_stats(balanced_RAN_network_noun(vocab_size, G, POS)))
+}
