@@ -4,10 +4,22 @@ library(tidyverse)
 library(igraph)
 library(purrr)
 library(fuzzyjoin)
+library(tibble)
 
 ## Association network functions
 ## Fuzzy matching packages
 source("R/assocNetwork.R")
+
+noun_net <- function(x){
+  d <- pivot_wider(as.data.frame(xtabs(~definition+Feature, data = x,drop.unused.levels = F)),
+                   names_from = Feature,
+                   values_from = Freq)
+  m <- as.matrix(column_to_rownames(d, var = "definition"))
+  adj_mat <- ifelse(m %*% t(m) > 0,1,0)
+  diag(adj_mat) <- 0
+  return(list(feat_df = d, adj_mat = adj_mat, graph = graph_from_adjacency_matrix(adj_mat)))
+}
+
 
 ## Load vocabulary and association data
 load("data/associations-child.Rdata")
@@ -43,17 +55,27 @@ best_match[best_match$cue == "pet (noun)",]$vocab <- "pet's name" ## only one it
 noun_feats$definition[noun_feats$definition =="tv"] <- "TV" #fixing discrepancy
 
 
-## Different feature lists
-feats_list <- split(noun_feats, noun_feats$BR_Label)
+## Different feature lists: by Label
+feats_maximal <- expand.grid(definition = unique(noun_feats$definition),Label = unique(noun_feats$BR_Label)) %>%
+  left_join(select(noun_feats,definition, BR_Label,Feature), by = c("definition", "Label" = "BR_Label"))
+feats_list <- split(feats_maximal, feats_maximal$Label,drop = FALSE)
 
 
 feat_mats <- map(feats_list, function(x){
-  return(pivot_wider(as.data.frame(xtabs(~definition+Feature, data = x)),
-                     names_from = Feature,
-                     values_from = Freq))
+  x <- pivot_wider(as.data.frame(xtabs(~definition+Feature, data = x,drop.unused.levels = F)),
+                   names_from = Feature,
+                   values_from = Freq)
+  x <- as.matrix(column_to_rownames(x, var = "definition"))
+  adj_mat <- ifelse(x %*% t(x) > 0,1,0)
+  diag(adj_mat) <- 0
+  return(list(feat_df = x, adj_mat = adj_mat, graph = graph_from_adjacency_matrix(adj_mat)))
 })
   
+## By any feature
+noun_network <- noun_net(noun_feats)
 
+save(feat_mats, file = "data/feature_graphs.Rdata")
+save(noun_network, file = "data/graph_full_nounNet.Rdata")
 
 ## Cue-response table for association matrix
 
@@ -115,8 +137,22 @@ vocab_graphs <- map(vocab_splits_produced, function(x){
 
 save(vocab_graphs,file = "data/individual_networks.Rdata")
 
+## Individual noun networks by label
+ind_noun_graphs <- map(vocab_splits_produced, function(x){
+  map(feat_mats, function(y){
+    ind_adj_mat <- as.matrix(y$adj_mat[rownames(y$adj_mat) %in% x$CDI_Metadata_compatible,colnames(y$adj_mat) %in% x$CDI_Metadata_compatible])
+    return(list(graph = graph_from_adjacency_matrix(ind_adj_mat,mode = "directed"),form = x$form))
+  })
+})
 
+save(ind_noun_graphs,file = "data/individual_noun_networks.Rdata")
 
+## Individual noun networks any feature
+ind_noun_graphs_anyfeat <- map(vocab_splits_produced, function(x){
+  x <- x %>%
+    filter(lexical_class == "nouns")
+  ind_adj_mat <- as.matrix(noun_network$adj_mat[rownames(noun_network$adj_mat) %in% x$CDI_Metadata_compatible,colnames(noun_network$adj_mat) %in% x$CDI_Metadata_compatible])
+  return(list(graph = graph_from_adjacency_matrix(ind_adj_mat,mode = "directed"),form = x$form))
+})
 
-
-
+save(ind_noun_graphs_anyfeat,file = "data/ind_noun_graphs_anyfeat.Rdata")

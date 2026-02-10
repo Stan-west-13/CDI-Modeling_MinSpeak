@@ -29,6 +29,8 @@ row_SD <- function(d){
 load("data/individual_networks.Rdata")
 load("data/child_oriented_graph.Rdata")
 load("data/child_oriented_graph_wg.Rdata")
+load("data/ind_noun_graphs_anyfeat.Rdata")
+load("data/graph_full_nounNet.Rdata")
 cdi <- readRDS("data/cdi-metadata.rds")
 cdi_WG <- readRDS("data/cdi_WG.rds")
 cdi$POS <- ifelse(cdi$lexical_class == "nouns"|cdi$lexical_class=="verbs",cdi$lexical_class, "other")
@@ -45,16 +47,18 @@ ran_list <- map(vocab_graphs, function(x){
   return(list(vocab = vocab,vocab_size = vocab_size, graph = x$graph, POS = POS, form = x$form))                  
 })
 
+
+
+
 POS_numbers_ASD <- map(ran_list,function(x){
   return(list(POS = x$POS, form = x$form))
 })
 
 
-POS_numbers_df <- map_dfr(.x = POS_numbers_ASD, .f = data.frame(.x$POS), .id = "name") %>%
-  pivot_wider(id_cols = name,
-              values_from = Freq,
-              names_from = Var1)
-
+ POS_numbers_df <- map_dfr(POS_numbers_ASD, function(x){
+   d <- data.frame(noun = x$POS["nouns"], verb = x$POS["verbs"], other = x$POS["other"])
+   return(d)
+ })
 
 ## POS Vertices WS
 vertices_CoxHae_toddler <- data.frame(vId_CoxHae_toddler = seq_len(vcount(graph_FullNet)),
@@ -107,7 +111,7 @@ invisible(clusterExport(cl, c("vocab_graphs", "graph_FullNet", "vertices_POS_chi
 # Finally, run with parLapply. Running 1000 replications takes less than two minutes.
 starttime <- proc.time()
 stats_ASD_RAN <- parLapply(cl, POS_numbers_ASD,
-                           function(n,G,G_WG,POS,POS_wg) replicate(1000, balanced_RAN_stats(n,G,G_WG,POS,POS_wg)),
+                           function(n,G,G_WG,POS,POS_wg) replicate(1000, balanced_RAN_stats_n(n,G,G_WG,POS,POS_wg)),
                            G = graph_FullNet,G_WG = graph_WG, POS = as.factor(vertices_POS_child$POS),POS_wg = as.factor(vertices_POS_child_wg$POS))
 
 save(stats_ASD_RAN, file = "data/Child_Stats_ASD_balRAN_1000.Rdata")
@@ -146,8 +150,105 @@ write_rds(all_RAN_stats, "data/all_RAN_stats.rds")
 
 
 
+###################################################################################
+
+## List with vocab size, graph, and POS
+ran_list_noun <- map(ind_noun_graphs_anyfeat, function(x){
+  vocab <- names(as_adj_list(x$graph))
+  vocab_size <- length(names(as_adj_list(x$graph)))
+  POS <- data.frame(word = vocab) %>%
+    mutate(POS = "nouns") 
+  POS <- table(factor(POS$POS, levels = c("nouns")))
+  
+  return(list(vocab = vocab,vocab_size = vocab_size, graph = x$graph, POS = POS ))#POS = POS, form = x$form))                  
+})
 
 
+
+
+POS_numbers_ASD_noun <- map(ran_list_noun,function(x){
+  return(list(POS = x$POS, form = x$form))
+})
+
+POS_numbers_df_noun <- map_dfr(POS_numbers_ASD_noun, function(x){
+  d <- data.frame(noun = x$POS["nouns"], verb = x$POS["verbs"], other = x$POS["other"])
+  return(d)
+})
+
+
+## POS Vertices nouns
+vertices_CoxHae_toddler_noun <- data.frame(vId_CoxHae_toddler_noun = seq_len(vcount(noun_network$graph)),
+                                      CDI_Metadata_compatible = names(V(noun_network$graph))) ## Make vertices IDs
+
+vertices_POS_child_noun <- vertices_CoxHae_toddler_noun %>%
+  mutate(POS = "nouns") %>%
+  left_join(select(cdi, num_item_id, CDI_Metadata_compatible))## Merge in POS
+
+vertices_POS_child_noun <- subset_CDI_NAs(vertices_POS_child_noun$POS, vertices_POS_child_noun$vId_CoxHae_toddler_noun, vertices_POS_child_noun$num_item_id)
+
+save(vertices_POS_child_noun, file = "data/vertices_POS_child_noun.Rdata")
+
+
+
+
+## RAN Simulations Nouns
+load("data/vertices_POS_child_noun.Rdata")
+
+# Define the cluster, using all by two cores on the system. This should give
+# you 30 "workers". Before you do this, start "top" in another terminal window
+# to see what happens.
+cl <- makeCluster(detectCores()-2)
+
+# Setting the Random Number Generator Stream for each worker will make sure
+# that random processes behave differently on each.
+clusterSetRNGStream(cl)
+
+
+
+# Export everything needed to run the operation, including any data or
+# functions you have defined. If a function you have written relies on a
+# package, make sure to use the package::function referencing.
+invisible(clusterExport(cl, c("ind_noun_graphs_anyfeat", "noun_network", "vertices_POS_child_noun",
+                              "balanced_RAN_network_noun", "network_stats", "balanced_RAN_stats_noun", "multiSample", "indegree_igraph")))
+
+# Finally, run with parLapply. Running 1000 replications takes less than two minutes.
+starttime <- proc.time()
+stats_ASD_RAN_noun <- parLapply(cl, POS_numbers_ASD_noun,
+                           function(n,G,POS) replicate(1000, balanced_RAN_stats_noun(n,G,POS)),
+                           G = noun_network$graph, POS = as.factor(vertices_POS_child_noun$POS))
+
+
+save(stats_ASD_RAN_noun, file = "data/Noun_Child_Stats_ASD_balRAN_1000.Rdata")
+
+
+
+stoptime <- proc.time()
+print(stoptime - starttime)
+
+# All done, so release the workers
+stopCluster(cl)
+
+
+## Format RAN stats
+mean_RAN_noun <- stats_ASD_RAN %>% 
+  map_dfr(., .f = rowMeans, na.rm = TRUE, .id = "subjectkey_intAge") %>%
+  rename(indegreeavg_RAN_mean = indegreeavg,
+         indegreemed_RAN_mean = indegreemed,
+         clustcoef_RAN_mean = clustcoef,
+         meandist_RAN_mean = meandist)
+
+sd_RAN_noun <- stats_ASD_RAN %>% 
+  map_dfr(., .f = row_SD,  .id = "subjectkey_intAge") %>%
+  rename(indegreeavg_RAN_sd = indegreeavg,
+         indegreemed_RAN_sd = indegreemed,
+         clustcoef_RAN_sd = clustcoef,
+         meandist_RAN_sd = meandist)
+
+
+## Descriptives for 1000 RAN iterations
+all_RAN_stats_noun <- left_join(mean_RAN_noun,sd_RAN_noun)
+
+write_rds(all_RAN_stats_noun, "data/all_RAN_stats_noun.rds")
 
 
 

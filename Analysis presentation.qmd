@@ -39,15 +39,25 @@ library(purrr)
 library(MatchIt)
 library(ggh4x)
 library(plotly)
+library(ggraph)
 d_netstats <- read_rds("data/all_Netstats_z_meta.rds") %>%
   mutate(metric_plot = factor(metric, 
                               levels = c("indegreemed","indegreeavg","clustcoef","meandist"),
                               labels = c("Median_Indegree", "Average_Indegree","Clustering_Coefficient","Mean Distance")),
-         group = factor(group, levels = c("yng", "mdl", "old")))
+         group = factor(group, levels = c("yng", "mdl", "old")),
+         netBuild = "associations")
 
+d_netstats_nouns <- read_rds("data/all_Netstats_z_meta_nouns.rds")%>%
+  mutate(metric_plot = factor(metric, 
+                              levels = c("indegreemed","indegreeavg","clustcoef","meandist"),
+                              labels = c("Median_Indegree", "Average_Indegree","Clustering_Coefficient","Mean Distance")),
+         group = factor(group, levels = c("yng", "mdl", "old")),
+         netBuild = "nounFeats")
+d_netstats <- rbind(d_netstats,d_netstats_nouns)
 matched_pps <- read_rds("data/matched_groups_single_timepoint.rds")
 
-
+load("data/graph_full_nounNet.Rdata")
+load("data/child_oriented_graph.Rdata")
 
 ```
 
@@ -59,21 +69,21 @@ ggplot(d_netstats %>%
          filter(origin == "truenet"& stat == "truestat"), aes(x = nProduced, y = value))+
   geom_point()+
   geom_smooth(method = "loess")+
-  facet_grid2(~metric_plot,scales = "free_y", independent = "y")+
+  facet_grid2(netBuild~metric_plot,scales = "free", independent = "all")+
   theme_bw(base_size = 24)+
   labs(title = "True Scores Across Vocabuary")
 ggplot(d_netstats %>% 
          filter(origin == "RAN"& stat == "mean"), aes(x = nProduced, y = value))+
   geom_point()+
   geom_smooth(method = "loess")+
-  facet_grid2(~metric_plot,scales = "free_y", independent = "y")+
+  facet_grid2(netBuild~metric_plot,scales = "free", independent = "all")+
   theme_bw(base_size = 24)+
   labs(title = "RAN Scores Across Vocabuary")
 
 ggplot(d_netstats, aes(x = nProduced, y = z))+
   geom_point()+
   geom_smooth(method = "loess")+
-  facet_grid(~metric_plot)+
+  facet_grid2(netBuild~metric_plot,scales = "free",independent = "all")+
   theme_bw(base_size = 24)+
   labs(title = "Standardized Scores across vocabuary")
 ```
