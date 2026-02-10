@@ -56,14 +56,14 @@ matched_pps <- read_rds("data/matched_groups_single_timepoint.rds")
 ```{r}
 
 ggplot(d_netstats %>% 
-         filter(origin == "truenet"&stat == "truestat"), aes(x = nProduced, y = value))+
+         filter(origin == "truenet"& stat == "truestat"), aes(x = nProduced, y = value))+
   geom_point()+
   geom_smooth(method = "loess")+
   facet_grid2(~metric_plot,scales = "free_y", independent = "y")+
   theme_bw(base_size = 24)+
   labs(title = "True Scores Across Vocabuary")
 ggplot(d_netstats %>% 
-         filter(origin == "RAN"&stat == "mean"), aes(x = nProduced, y = value))+
+         filter(origin == "RAN"& stat == "mean"), aes(x = nProduced, y = value))+
   geom_point()+
   geom_smooth(method = "loess")+
   facet_grid2(~metric_plot,scales = "free_y", independent = "y")+
@@ -133,7 +133,7 @@ ggplot(d_netstats , aes(x = group, y = z, color = group))+
 
 ```{r}
 d_netstats_first <- d_netstats %>%
-  mutate(group_two = as.factor(ifelse(group == "yng"|group =="mdl", "non_minspeak","minspeak"))) %>%
+  mutate(group_two = as.factor(ifelse(group == "yng"|group =="mdl", "no_delay","delay"))) %>%
   filter(origin == "truenet") %>%
   group_by(subjectkey) %>%
   slice_min(interview_age, n = 1 )
@@ -146,7 +146,8 @@ d_netstats_first %>%
             mean_nProduced = mean(nProduced),
             sd_nProduced = sd(nProduced),
             mean_age = mean(interview_age),
-            sd_age = sd(interview_age))
+            sd_age = sd(interview_age)) %>%
+  as.data.frame()
 
 
 
@@ -172,10 +173,21 @@ matched_df_all %>%
 
 ```
 
--   Keeping both WS and WG forms, retains 17 in the old group, now will
-    be able to match to $n = 48$ per group.
+-   Keeping both WS and WG forms, we match the no-delay group to the 40
+    delayed children, allowing the no-delay group to be 3x bigger.
 
 ```{r, echo =  FALSE,fig.width=48, fig.height=12, fig.fullwidth=TRUE}
+
+matched_df_all %>%
+  select(subjectkey,interview_age,nProduced,group_two) %>%
+  unique() %>%
+  group_by(group_two) %>%
+  summarize(n = n(),
+            mean_age = mean(interview_age),
+            mean_produced = mean(nProduced),
+            sd_age = sd(interview_age),
+            sd_produced = sd(nProduced)) %>%
+  as.data.frame()
 
 ggplot(matched_df_all, aes(x = nProduced, color = group_two))+
   geom_density(size = 2)+
@@ -302,6 +314,17 @@ matched_df %>%
 ```
 
 ```{r, echo =  FALSE,fig.width=48, fig.height=12, fig.fullwidth=TRUE}
+
+matched_df %>%
+  select(subjectkey_intAge,group_two,interview_age,nProduced) %>%
+  unique() %>%
+  group_by(group_two) %>%
+  summarize(n = n(),
+            mean_age = mean(interview_age),
+            sd_age = sd(interview_age),
+            mean_nProduced = mean(nProduced),
+            sd_nProduced = sd(nProduced))
+
 
 ggplot(matched_df, aes(x = nProduced, color = group_two))+
   geom_density(size = 2)+
