@@ -53,7 +53,10 @@ d_netstats_nouns <- read_rds("data/all_Netstats_z_meta_nouns.rds")%>%
                               labels = c("Median_Indegree", "Average_Indegree","Clustering_Coefficient","Mean Distance")),
          group = factor(group, levels = c("yng", "mdl", "old")),
          netBuild = "nounFeats")
-d_netstats <- rbind(d_netstats,d_netstats_nouns)
+d_netstats <- rbind(d_netstats,d_netstats_nouns) %>%
+  mutate(netBuild = as.factor(netBuild),
+         metric = as.factor(metric),
+         stat = as.factor(stat))
 matched_pps <- read_rds("data/matched_groups_single_timepoint.rds")
 
 load("data/graph_full_nounNet.Rdata")
@@ -72,13 +75,23 @@ ggplot(d_netstats %>%
   facet_grid2(netBuild~metric_plot,scales = "free", independent = "all")+
   theme_bw(base_size = 24)+
   labs(title = "True Scores Across Vocabuary")
+
 ggplot(d_netstats %>% 
          filter(origin == "RAN"& stat == "mean"), aes(x = nProduced, y = value))+
   geom_point()+
   geom_smooth(method = "loess")+
   facet_grid2(netBuild~metric_plot,scales = "free", independent = "all")+
   theme_bw(base_size = 24)+
-  labs(title = "RAN Scores Across Vocabuary")
+  labs(title = "RAN Mean Scores Across Vocabuary")
+
+ggplot(d_netstats %>% 
+         filter(origin == "RAN"& stat == "sd"), aes(x = nProduced, y = value))+
+  geom_point()+
+  geom_smooth(method = "loess")+
+  facet_grid2(netBuild~metric_plot,scales = "free", independent = "all")+
+  theme_bw(base_size = 24)+
+  labs(title = "RAN SD Scores Across Vocabuary")
+
 
 ggplot(d_netstats, aes(x = nProduced, y = z))+
   geom_point()+
@@ -86,6 +99,17 @@ ggplot(d_netstats, aes(x = nProduced, y = z))+
   facet_grid2(netBuild~metric_plot,scales = "free",independent = "all")+
   theme_bw(base_size = 24)+
   labs(title = "Standardized Scores across vocabuary")
+
+
+ggplot(d_netstats %>%
+         group_by(subjectkey_intAge,metric,netBuild) %>%
+         mutate(RAN_dist = (value[stat == "truestat"] - value[stat =="mean"])), aes(x = nProduced,y = RAN_dist, fill = netBuild))+
+  geom_col(position = "dodge")+
+  facet_wrap2(~metric,scales = "free")+
+  labs(y = "true stat - mean RAN stat")
+
+ggsave("Figures/RAN_distance_plot.png")
+
 ```
 
 ## Plotting unmatched statistic distributions over production {.smaller .scrollable}
@@ -98,7 +122,7 @@ ggplot(d_netstats, aes(x = nProduced, y = z))+
 
 ggplot(d_netstats %>% 
          filter(form == "WS"), aes(x = nProduced, y = z, color = group))+
-  facet_grid(~metric_plot)+
+  facet_grid2(netBuild~metric_plot,scales = "free",independent = "all")+
   geom_smooth(method = "lm",
               formula = y~poly(x,3))+
   theme_bw(base_size = 24)+
@@ -109,7 +133,7 @@ ggplot(d_netstats %>%
 ggplot(d_netstats %>% 
          filter(form == "WG"), aes(x = nProduced, y = z, color = group))+
   geom_point() +
-  facet_grid(~metric_plot)+
+  facet_grid2(netBuild~metric_plot,scales = "free",independent = "all")+
   geom_smooth(method = "lm",
               formula = y~poly(x,3))+
   theme_bw(base_size = 24)+
@@ -122,7 +146,7 @@ ggplot(d_netstats %>%
 ggplot(d_netstats , aes(x = group, y = z, color = group))+
   geom_violin() +
   geom_boxplot(width = 0.2, fill = "lightgrey")+
-  facet_grid(~metric_plot)+
+  facet_grid2(netBuild~metric_plot,scales = "free",independent = "all")+
   theme_bw(base_size = 24)+
   labs(title = "Unmatched Statistic Boxplots Over Group ",
        x = "Group",
@@ -149,9 +173,9 @@ d_netstats_first <- d_netstats %>%
   slice_min(interview_age, n = 1 )
 
 d_netstats_first %>%
-  select(subjectkey,group_two,nProduced, interview_age) %>%
+  select(subjectkey,group_two,nProduced, interview_age,netBuild) %>%
   unique() %>%
-  group_by(group_two) %>%
+  group_by(group_two,netBuild) %>%
   summarize(n = n(),
             mean_nProduced = mean(nProduced),
             sd_nProduced = sd(nProduced),
@@ -167,19 +191,28 @@ d_netstats_first %>%
 ## Matching to the minimally speaking group.
 
 ```{r}
-match_lst_all <- d_netstats_first %>%
-  select(subjectkey_intAge, interview_age,nProduced, group_two) %>%
-  unique() %>%
-  matchit(group_two ~ nProduced, data = ., method = "optimal", distance = "glm",ratio = 3)
 
-matched_df_all <- d_netstats_first %>%
-  filter(subjectkey_intAge %in% match.data(match_lst_all)$subjectkey_intAge) %>%
-  mutate(int_age_cut = cut(interview_age,3))
+noun_assoc_split <- split(d_netstats_first,d_netstats_first$netBuild)
 
-matched_df_all %>%
-  select(subjectkey,nProduced,group_two) %>%
-  unique() %>%
-  t.test(nProduced~group_two, data = .)
+
+match_noun_assoc <- map(noun_assoc_split, function(x){
+  matchit_all <- x %>%
+    select(subjectkey_intAge, interview_age,nProduced, group_two) %>%
+    unique() %>%
+    matchit(group_two ~ nProduced, data = ., method = "optimal", distance = "glm"  ,ratio = 3)
+  match_df <- x %>%
+     filter(subjectkey_intAge %in% match.data(matchit_all)$subjectkey_intAge) %>%
+     mutate(int_age_cut = cut(interview_age,3))
+  return(match_df)
+})
+
+map(match_noun_assoc, function(x){
+  x %>%
+    select(subjectkey,nProduced,group_two) %>%
+    unique() %>%
+    t.test(nProduced~group_two, data = .)
+})
+
 
 ```
 
@@ -188,25 +221,28 @@ matched_df_all %>%
 
 ```{r, echo =  FALSE,fig.width=48, fig.height=12, fig.fullwidth=TRUE}
 
-matched_df_all %>%
-  select(subjectkey,interview_age,nProduced,group_two) %>%
-  unique() %>%
-  group_by(group_two) %>%
-  summarize(n = n(),
-            mean_age = mean(interview_age),
-            mean_produced = mean(nProduced),
-            sd_age = sd(interview_age),
-            sd_produced = sd(nProduced)) %>%
-  as.data.frame()
+map(match_noun_assoc, function(x){
+  x %>%
+    select(subjectkey,interview_age,nProduced,group_two) %>%
+    unique() %>%
+    group_by(group_two) %>%
+    summarize(n = n(),
+              mean_age = mean(interview_age),
+              mean_produced = mean(nProduced),
+              sd_age = sd(interview_age),
+              sd_produced = sd(nProduced)) %>%
+    as.data.frame()
 
-ggplot(matched_df_all, aes(x = nProduced, color = group_two))+
-  geom_density(size = 2)+
-  theme_bw(base_size = 52)
-
-ggplot(matched_df_all, aes(x = nProduced, , y = interview_age,color = group_two))+
-  geom_point(size = 13)+
-  theme_bw(base_size = 52)
-
+  ggplot(x, aes(x = nProduced, color = group_two))+
+    geom_density(size = 2)+
+    theme_bw(base_size = 52)+
+    labs(title = paste0("Matching between groups ", unique(x$netBuild)))
+  
+  ggplot(x, aes(x = nProduced, , y = interview_age,color = group_two))+
+    geom_point(size = 13)+
+    theme_bw(base_size = 52)+
+    labs(title = paste0("Matching between groups ", unique(x$netBuild)))
+})
 
 ```
 
@@ -223,26 +259,32 @@ ggplot(matched_df_all, aes(x = nProduced, , y = interview_age,color = group_two)
 
 ```{r}
 
-nProduced_poly_all <- matched_df_all %>%
-  ungroup() %>%
-  select(nProduced) %>%
-  unique() %>%
-  cbind(poly(.$nProduced,3)) %>%
-  rename(linear = "1",
-         quadratic = "2",
-         cubic = "3")
+nProduced_poly_all <- match_noun_assoc %>%
+  map(~ .x %>%
+        ungroup() %>%
+        select(nProduced) %>%
+        unique() %>%
+        cbind(poly(.$nProduced,3)) %>%
+        rename(linear = "1",
+               quadratic = "2",
+               cubic = "3"))
 
-matched_df_poly_all <- matched_df_all %>%
-  left_join(nProduced_poly_all) %>%
-  filter(origin == "truenet")
-
-d_splits_all <- split(matched_df_poly_all,matched_df_poly_all$metric)
+matched_df_poly_all <- map2(match_noun_assoc,nProduced_poly_all, function(x,y){
+                              x %>%
+                              left_join(y) %>%
+                              filter(origin == "truenet")
+}) 
+ 
+d_splits_all <- matched_df_poly_all %>%
+  map(~ split(.x,.x$metric))
 
 x <- map(d_splits_all, function(x){
-  lm(z ~ (linear+quadratic+cubic)*group_two, data = x)
+    map(x, function(d){ 
+          lm(z ~ (linear+quadratic+cubic)*group_two, data = d)
+      })
 })
 
-lapply(x, summary)
+map(x, ~map(.x, function(d){summary(d)}))
 
 
 ```
@@ -251,13 +293,15 @@ lapply(x, summary)
 
 ```{r}
 
-ggplot(matched_df_poly_all %>% 
+map(matched_df_poly_all, ~ ggplot(.x %>% 
          filter(origin == "truenet"), aes(x = nProduced, y = z, color = group_two))+
   #geom_point()+
   theme_bw(base_size = 24) +
   geom_smooth(method = "lm",
               formula = y ~ poly(x,3))+
-  facet_grid(~metric_plot)
+  facet_grid(~metric_plot))
+
+
 
 
 ```
@@ -304,18 +348,28 @@ d_WG %>%
 
 ```{r, echo =  FALSE,fig.fullwidth=TRUE,fig.width=24, fig.height=12}
 
-match_lst <- d_WG %>%
-  select(subjectkey_intAge, interview_age,nProduced, group_two) %>%
-  unique() %>%
-  matchit(group_two ~ nProduced, data = ., method = "optimal", distance = "glm", ratio = 2)
+WG_split_noun_assoc <- split(d_WG, d_WG$netBuild)
 
-matched_df <- d_WG %>%
-  filter(subjectkey_intAge %in% match.data(match_lst)$subjectkey_intAge)
+
+matched_df <- map(WG_split_noun_assoc, function(x){
+  match_lst <- x %>%
+         select(subjectkey_intAge, interview_age,nProduced, group_two) %>%
+         unique() %>%
+         matchit(group_two ~ nProduced, data = ., method = "optimal", distance = "glm", ratio = 2)
+  matched_df <- x %>%
+        filter(subjectkey_intAge %in% match.data(match_lst)$subjectkey_intAge)
+  return(matched_df)
+})
+
+
+
 
 matched_df %>%
-  select(subjectkey,nProduced,group_two) %>%
-  unique() %>%
-  t.test(nProduced~group_two, data = .)
+  map(~.x %>%
+        select(subjectkey,nProduced,group_two) %>%
+        unique() %>%
+        t.test(nProduced~group_two, data = .))
+  
 
 
 
