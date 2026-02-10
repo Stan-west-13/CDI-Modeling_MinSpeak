@@ -105,7 +105,8 @@ ggplot(d_netstats %>%
          group_by(subjectkey_intAge,metric,netBuild) %>%
          mutate(RAN_dist = (value[stat == "truestat"] - value[stat =="mean"])), aes(x = nProduced,y = RAN_dist, fill = netBuild))+
   geom_col(position = "dodge")+
-  facet_wrap2(~metric,scales = "free")+
+  facet_wrap2(~metric_plot,scales = "free")+
+  theme_bw(base_size = 24)+
   labs(y = "true stat - mean RAN stat")
 
 ggsave("Figures/RAN_distance_plot.png")
@@ -190,6 +191,11 @@ d_netstats_first %>%
 
 ## Matching to the minimally speaking group.
 
+-   Welch two sample t-test revealed no significant difference in
+    productive vocabulary between groups for either the association,
+    $t(80.84) = -0.243, p = 0.809$ or noun-feature,
+    $t(79.14) = -0.255, p = 0.799$ constructed networks.
+
 ```{r}
 
 noun_assoc_split <- split(d_netstats_first,d_netstats_first$netBuild)
@@ -216,7 +222,7 @@ map(match_noun_assoc, function(x){
 
 ```
 
--   Keeping both WS and WG forms, we match the no-delay group to the 40
+-   Keeping both WS and WG forms, we match the no-delay group to the 48
     delayed children, allowing the no-delay group to be 3x bigger.
 
 ```{r, echo =  FALSE,fig.width=48, fig.height=12, fig.fullwidth=TRUE}
@@ -232,30 +238,35 @@ map(match_noun_assoc, function(x){
               sd_age = sd(interview_age),
               sd_produced = sd(nProduced)) %>%
     as.data.frame()
-
-  ggplot(x, aes(x = nProduced, color = group_two))+
-    geom_density(size = 2)+
-    theme_bw(base_size = 52)+
-    labs(title = paste0("Matching between groups ", unique(x$netBuild)))
-  
-  ggplot(x, aes(x = nProduced, , y = interview_age,color = group_two))+
-    geom_point(size = 13)+
-    theme_bw(base_size = 52)+
-    labs(title = paste0("Matching between groups ", unique(x$netBuild)))
 })
+
+map(match_noun_assoc, ~
+        ggplot(.x, aes(x = nProduced, color = group_two))+
+          geom_density(size = 2)+
+          theme_bw(base_size = 52)+
+          labs(title = paste0("Matching between groups ", unique(.x$netBuild))))
+
+map(match_noun_assoc, ~
+        ggplot(.x, aes(x = nProduced, , y = interview_age,color = group_two))+
+          geom_point(size = 13)+
+          theme_bw(base_size = 52)+
+          labs(title = paste0("Matching between groups ", unique(.x$netBuild))))
+
 
 ```
 
 ## Run Linear Models {.smaller .scrollable}
 
--   Linear models were run regressing
-    $network_{statistic} \sim (linear_{nproduced} + quadratic_{nproduced} +cubic_{nproduced})  * group$
-
 -   Number of words produced was re-factored to account for third-order
     polynomial trends in the network statistics
 
--   No models revealed any group differences in network structure nor
-    interaction with interview age.
+-   Linear models were run regressing
+    $network_{statistic} \sim (linear_{nproduced} + quadratic_{nproduced} +cubic_{nproduced})  * group$
+
+-   Associations:
+
+    -   Each model except for the clustering coefficient model revealed
+        linear, quadratic, and cubic
 
 ```{r}
 
@@ -324,12 +335,12 @@ d_WG <- d_netstats %>%
          nProduced >= 3 & nProduced <= 392) %>%
   group_by(subjectkey) %>%
   slice_min(interview_age,n = 1) %>%
-  mutate(group_two = as.factor(ifelse(group == "yng"|group =="mdl", "non_minspeak","minspeak")))
+  mutate(group_two = as.factor(ifelse(group == "yng"|group =="mdl", "no_delay","delay")))
 
 d_WG %>%
-  select(subjectkey,interview_age,nProduced,group_two) %>%
+  select(subjectkey,interview_age,nProduced,group_two,netBuild) %>%
   unique() %>%
-  group_by(group_two) %>%
+  group_by(group_two,netBuild) %>%
   summarize(n = n(),
             mean_age = mean(interview_age),
             mean_produced = mean(nProduced),
@@ -379,28 +390,27 @@ matched_df %>%
 
 ```{r, echo =  FALSE,fig.width=48, fig.height=12, fig.fullwidth=TRUE}
 
-matched_df %>%
-  select(subjectkey_intAge,group_two,interview_age,nProduced) %>%
-  unique() %>%
-  group_by(group_two) %>%
-  summarize(n = n(),
-            mean_age = mean(interview_age),
-            sd_age = sd(interview_age),
-            mean_nProduced = mean(nProduced),
-            sd_nProduced = sd(nProduced))
+map(matched_df, ~
+                .x %>%   
+                  select(subjectkey_intAge,group_two,interview_age,nProduced) %>%
+                  unique() %>%
+                  group_by(group_two) %>%
+                  summarize(n = n(),
+                            mean_age = mean(interview_age),
+                            sd_age = sd(interview_age),
+                            mean_nProduced = mean(nProduced),
+                            sd_nProduced = sd(nProduced)))
 
-
-ggplot(matched_df, aes(x = nProduced, color = group_two))+
-  geom_density(size = 2)+
-  theme_bw(base_size = 52)
-
-ggplot(matched_df, aes(x = nProduced, , y = interview_age,color = group_two))+
-  geom_point(size = 13)+
-  theme_bw(base_size = 52)
-
-
-
-
+map(matched_df, ~
+        ggplot(.x, aes(x = nProduced, color = group_two))+
+            geom_density(size = 2)+
+            theme_bw(base_size = 52)+
+            labs(title = paste0("Matching between groups ", unique(.x$netBuild))))
+map(matched_df, ~
+        ggplot(.x, aes(x = nProduced, , y = interview_age,color = group_two))+
+            geom_point(size = 13)+
+            theme_bw(base_size = 52)+
+            labs(title = paste0("Matching between groups ", unique(.x$netBuild))))          
 ```
 
 ## Run Linear Models
@@ -414,37 +424,47 @@ ggplot(matched_df, aes(x = nProduced, , y = interview_age,color = group_two))+
     ```{r}
 
     nProduced_poly <- matched_df %>%
-      ungroup() %>%
-      select(nProduced) %>%
-      unique() %>%
-      cbind(poly(.$nProduced,3)) %>%
-      rename(linear = "1",
-             quadratic = "2",
-             cubic = "3")
+      map(~.x %>% 
+             ungroup() %>%
+             select(nProduced) %>%
+             unique() %>%
+             cbind(poly(.$nProduced,3)) %>%
+             rename(linear = "1",
+                   quadratic = "2",
+                   cubic = "3"))
+     
 
-    matched_df_poly <- matched_df %>%
-      left_join(nProduced_poly) %>%
-      filter(origin == "truenet")
+    matched_df_poly <- map2(matched_df,nProduced_poly, function(x,y){
+      return(x %>%
+               left_join(y) %>%
+               filter(origin == "truenet"))
+    }) 
+      
 
-    d_splits <- split(matched_df_poly,matched_df_poly$metric)
-
-    x <- map(d_splits, function(x){
-      lm(z ~ (linear+quadratic+cubic) * group_two, data = x)
+    d_splits <- map(matched_df_poly, function(x){
+      split(x,x$metric)
     })
 
-    lapply(x, summary)
+    x <- map(d_splits, function(x){
+      map(x,~lm(z ~ (linear+quadratic+cubic) * group_two, data = .x))
+    })
+
+    map(x,~ map( .x,~summary(.x)))
 
 
     ```
 
     ```{r}
-    ggplot(matched_df %>% 
+
+    map(matched_df_poly, ~ 
+          ggplot(.x %>% 
              filter(origin == "truenet"), aes(x = nProduced, y = z, color = group_two))+
       #geom_point()+
       theme_bw(base_size = 24) +
       geom_smooth(method = "lm",
                   formula = y ~ poly(x,3))+
-      facet_wrap(~metric_plot)
+      facet_wrap(~metric_plot))
+
     ```
 
 # 
