@@ -61,30 +61,6 @@ load("data/child_oriented_graph.Rdata")
 
 ```
 
-## The Graphs {.scrollable .smaller}
-
--   One set of statistics were computed for a graph of association edges
-
--   The other was graph of feature edges for 359 nouns
-
-```{r}
-
-ggraph(graph_FullNet, layout = "auto")+
-  geom_edge_link(alpha = 0.2)+
-  geom_node_point(size = 2, colour = "grey") +
-  theme_void() +
-  labs(title = "Association Network Visualization")
-
-
-ggraph(noun_network$graph, layout = "auto")+
-  geom_edge_link(alpha = 0.2)+
-  geom_node_point(size = 2, colour = "grey") +
-  theme_void() +
-  labs(title = "Noun Feature Network Visualization")
-
-
-```
-
 ## Overall Statistic Trajectories Over Vocabulary Size and Age {.smaller .scrollable}
 
 ```{r}
