@@ -45,7 +45,7 @@ write_rds(all_Netstats_z, "data/all_Netstats_z.rds")
 
 ## Noun netstats
 all_Netstats_z_N <- true_stats_N %>% 
-  left_join(ran_stats) %>%
+  left_join(ran_stats_nouns) %>%
   pivot_longer(cols = starts_with(c("indegree","clustcoef","meandist")),
                names_to = c("metric","origin","stat"),
                values_to = "value",

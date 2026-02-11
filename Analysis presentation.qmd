@@ -3,6 +3,8 @@ title: "Standardized Network Analysis"
 author: "Stanley West"
 format: 
   revealjs:
+    embed-resources: true
+    self-contained-math: true
     scrollable: true
     smaller: true
     fig-width: 24
@@ -111,6 +113,14 @@ ggplot(d_netstats %>%
 
 ggsave("Figures/RAN_distance_plot.png")
 
+
+ggplot(d_netstats, aes(x = nProduced, y = value, color = stat))+
+  geom_point()+
+  geom_smooth()+
+  facet_grid2(netBuild~metric_plot, scales = "free", independent = "all")
+ggsave("Figures/network_stats_comparison.png")
+
+
 ```
 
 ## Plotting unmatched statistic distributions over production {.smaller .scrollable}
@@ -157,8 +167,8 @@ ggplot(d_netstats , aes(x = group, y = z, color = group))+
 
 -   The middle group does not have any child with production past 100
     for the words and gestures form, making it hard to compare to the
-    other groups, so we removed this group and instead will look at
-    minimally speaking vs. non-minimally speaking.
+    other groups, so we collapsed this group with the youngest group and
+    instead will look at delayed vs. non-delayed vocabularies.
 
 ## First Administrations - Both Forms
 
@@ -266,7 +276,27 @@ map(match_noun_assoc, ~
 -   Associations:
 
     -   Each model except for the clustering coefficient model revealed
-        linear, quadratic, and cubic
+        linear, quadratic, and cubic trends in number of words produced.
+
+    -   There is also an linear by group interaction for clustering
+        coefficient where it appears that the no delay children are more
+        linear in network cluster growth especially at large vocabulary
+        sizes.
+
+-   Noun Features:
+
+    -   Each metric revealed group main effects where the delayed group
+        exhibits higher degree networks with more clustering and shorter
+        distance between nodes than the non-delayed group.
+
+    -   The only interaction was in the median indegree analysis where
+        the was a group by linear trend interaction where the delayed
+        group appears to have a more linear increase in median degree
+        than the non-delay group.
+
+-   Looking at associative versus noun-feature networks result in
+    conflicting conclusions about the structure of early delayed versus
+    non-delayed vocabularies.
 
 ```{r}
 
@@ -310,7 +340,9 @@ map(matched_df_poly_all, ~ ggplot(.x %>%
   theme_bw(base_size = 24) +
   geom_smooth(method = "lm",
               formula = y ~ poly(x,3))+
-  facet_grid(~metric_plot))
+  facet_grid(~metric_plot)+
+  labs(title = "Network Statistic Trajectory by Group",
+       subtitle = paste("Network Construction:",unique(.x$netBuild))))
 
 
 
@@ -321,11 +353,11 @@ map(matched_df_poly_all, ~ ggplot(.x %>%
 
 -   Youngest administration
 
--   Only allowing networks of size 3 - 349 words.
+-   Only allowing networks of size 3 - 349 words
 
 -   Collapsing the middle-aged group (48 - 70 months old) and the
-    youngest group (16 - 42 months) to create a non-minimally speaking
-    and a minimally speaking group.
+    youngest group (16 - 42 months) to create delayed and non-delayed
+    language groups.
 
 ## Filtering to Words and Gestures
 
@@ -354,8 +386,11 @@ d_WG %>%
 
 ## Match groups on vocabulary size {.scrollable .smaller}
 
--   Matching to the minimally speaking group yields $n = 32$ for each
-    group, $t(61.993) = -0.039$, $p = 0.969$
+-   Matching to the delayed group, but allowing for the non-delay group
+    to be twice as big.
+-   Production matching
+    -   Associations: $t(59.58) = -0.844, p = 0.402$
+    -   Noun features: $t(56.44) = -0.831, p = 0.402$
 
 ```{r, echo =  FALSE,fig.fullwidth=TRUE,fig.width=24, fig.height=12}
 
@@ -415,56 +450,116 @@ map(matched_df, ~
 
 ## Run Linear Models
 
--   Linear models were run regressing
-    $network_{statistic} \sim (linear_{nproduced} + quadratic_{nproduced} +cubic_{nproduced}) * group$
-
 -   Number of words produced was re-factored to account for third-order
     polynomial trends in the network statistics
 
-    ```{r}
+-   Linear models were run regressing
+    $network_{statistic} \sim (linear_{nproduced} + quadratic_{nproduced} +cubic_{nproduced}) * group$
 
-    nProduced_poly <- matched_df %>%
-      map(~.x %>% 
-             ungroup() %>%
-             select(nProduced) %>%
-             unique() %>%
-             cbind(poly(.$nProduced,3)) %>%
-             rename(linear = "1",
-                   quadratic = "2",
-                   cubic = "3"))
-     
+-   Associations:
 
-    matched_df_poly <- map2(matched_df,nProduced_poly, function(x,y){
-      return(x %>%
-               left_join(y) %>%
-               filter(origin == "truenet"))
-    }) 
-      
+    -   Group difference only in median indegree, where the delay group
+        seems to have higher indegree networks compared to the no-delay
+        group. There were no interactions with linear, quadratic, or
+        cubic vocabulary production trends.
 
-    d_splits <- map(matched_df_poly, function(x){
-      split(x,x$metric)
-    })
+-   Noun Feature:
 
-    x <- map(d_splits, function(x){
-      map(x,~lm(z ~ (linear+quadratic+cubic) * group_two, data = .x))
-    })
+    -   Each model except for ASPL revealed a significant effect of
+        group, where the delay group exhibits more clustered and higher
+        degree network structure.
 
-    map(x,~ map( .x,~summary(.x)))
+    -   There is an interaction of group and linear production trends
+        for the clustering coefficient and ASPL, where again the delay
+        group appears more linear.
 
+```{r}
+nProduced_poly <- matched_df %>%
+  map(~.x %>% 
+         ungroup() %>%
+         select(nProduced) %>%
+         unique() %>%
+         cbind(poly(.$nProduced,3)) %>%
+         rename(linear = "1",
+               quadratic = "2",
+               cubic = "3"))
+ 
 
-    ```
+matched_df_poly <- map2(matched_df,nProduced_poly, function(x,y){
+  return(x %>%
+           left_join(y) %>%
+           filter(origin == "truenet"))
+}) 
+  
 
-    ```{r}
+d_splits <- map(matched_df_poly, function(x){
+  split(x,x$metric)
+})
 
-    map(matched_df_poly, ~ 
-          ggplot(.x %>% 
-             filter(origin == "truenet"), aes(x = nProduced, y = z, color = group_two))+
-      #geom_point()+
-      theme_bw(base_size = 24) +
-      geom_smooth(method = "lm",
-                  formula = y ~ poly(x,3))+
-      facet_wrap(~metric_plot))
+x_WG <- map(d_splits, function(x){
+  map(x,~lm(z ~ (linear+quadratic+cubic) * group_two, data = .x))
+})
 
-    ```
+map(x_WG,~ map( .x,~summary(.x)))
+```
 
-# 
+```{r}
+
+map(matched_df_poly, ~ 
+      ggplot(.x %>% 
+         filter(origin == "truenet"), aes(x = nProduced, y = z, color = group_two))+
+  #geom_point()+
+  theme_bw(base_size = 24) +
+  geom_smooth(method = "lm",
+              formula = y ~ poly(x,3))+
+  facet_wrap(~metric_plot)+
+  labs(title = "Network Statistic Trajectory by Group",
+       subtitle = paste("Network Construction:",unique(.x$netBuild)))
+)
+```
+
+# Conclusion
+
+## Association Networks
+
+-   Using both words and gestures and words and sentences forms in the
+    models allows for 144 no-delay and 48 delayed children to be
+    included.
+
+    -   We found that there was an interaction of group and linear
+        production trends for clustering coefficient where the delay
+        group exhibits less linear clustering at larger vocabulary sizes
+        (after \~ 500 words)
+
+-   Using just the words and gestures allows for 70 no-delay and 35
+    delayed children to be included.
+
+    -   The only group difference found was in median indegree, where
+        the delay group has higher indegree networks than the no-delay
+        group and there were no interactions with word production
+        trends.
+
+## Noun Feature Networks
+
+-   Using both words and gestures and words and sentences forms in the
+    models allows for 144 no-delay and 48 delayed children to be
+    included.
+
+    -   Each metric revealed group main effects where the delayed group
+        shows higher degree networks that are more clustered and shorter
+        ASPL than the non-delayed group.
+
+    -   Only interaction was in median indegree where the delayed group
+        shows more pronounced linear trends in degree across
+        development.
+
+-   Using just words and gestures allows 64 non-delay and 32 delayed
+    children to be included.
+
+    -   Each model except ASPL revealed a significant effect of group,
+        where the delay group exhibits more clustered networks with
+        higher indegree.
+
+    -   There is an interaction of group and linear production trends
+        for the clustering coefficient and ASPL, where again the delay
+        group appears more linear.

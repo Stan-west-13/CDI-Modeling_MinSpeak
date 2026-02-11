@@ -59,7 +59,7 @@ balanced_RAN_network_noun <- function(vocab_size, G, POS) {
 
 
 network_stats <- function(g) {
-  return(c(indegreemed=median(indegree_igraph(g)), 
+  return(c(indegreemed=median(indegree_igraph(g), na.rm = T), 
            indegreeavg=mean(indegree_igraph(g)),
            clustcoef=igraph::transitivity(g, type = "global"),
            meandist=igraph::mean_distance(g)))

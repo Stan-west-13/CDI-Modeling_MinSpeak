@@ -173,7 +173,7 @@ POS_numbers_ASD_noun <- map(ran_list_noun,function(x){
 POS_numbers_df_noun <- map_dfr(POS_numbers_ASD_noun, function(x){
   d <- data.frame(noun = x$POS["nouns"], verb = x$POS["verbs"], other = x$POS["other"])
   return(d)
-})
+},.id = "name")
 
 
 ## POS Vertices nouns
@@ -209,13 +209,13 @@ clusterSetRNGStream(cl)
 # functions you have defined. If a function you have written relies on a
 # package, make sure to use the package::function referencing.
 invisible(clusterExport(cl, c("ind_noun_graphs_anyfeat", "noun_network", "vertices_POS_child_noun",
-                              "balanced_RAN_network_noun", "network_stats", "balanced_RAN_stats_noun", "multiSample", "indegree_igraph")))
+                              "random_acq_network_igraph", "network_stats", "balanced_RAN_stats_noun", "multiSample", "indegree_igraph")))
 
 # Finally, run with parLapply. Running 1000 replications takes less than two minutes.
 starttime <- proc.time()
 stats_ASD_RAN_noun <- parLapply(cl, POS_numbers_ASD_noun,
-                           function(n,G,POS) replicate(1000, balanced_RAN_stats_noun(n,G,POS)),
-                           G = noun_network$graph, POS = as.factor(vertices_POS_child_noun$POS))
+                           function(vocab_size,G) replicate(1000, network_stats(random_acq_network_igraph(vocab_size$POS,G))),
+                           G = noun_network$graph)
 
 
 save(stats_ASD_RAN_noun, file = "data/Noun_Child_Stats_ASD_balRAN_1000.Rdata")
@@ -230,23 +230,24 @@ stopCluster(cl)
 
 
 ## Format RAN stats
-mean_RAN_noun <- stats_ASD_RAN %>% 
+mean_RAN_noun <- stats_ASD_RAN_noun %>% 
   map_dfr(., .f = rowMeans, na.rm = TRUE, .id = "subjectkey_intAge") %>%
   rename(indegreeavg_RAN_mean = indegreeavg,
          indegreemed_RAN_mean = indegreemed,
          clustcoef_RAN_mean = clustcoef,
          meandist_RAN_mean = meandist)
 
-sd_RAN_noun <- stats_ASD_RAN %>% 
+sd_RAN_noun <- stats_ASD_RAN_noun %>% 
   map_dfr(., .f = row_SD,  .id = "subjectkey_intAge") %>%
   rename(indegreeavg_RAN_sd = indegreeavg,
          indegreemed_RAN_sd = indegreemed,
          clustcoef_RAN_sd = clustcoef,
-         meandist_RAN_sd = meandist)
+         meandist_RAN_sd = meandist) 
 
 
 ## Descriptives for 1000 RAN iterations
-all_RAN_stats_noun <- left_join(mean_RAN_noun,sd_RAN_noun)
+all_RAN_stats_noun <- left_join(mean_RAN_noun,sd_RAN_noun) %>%
+  select(-indegreemed.NA)
 
 write_rds(all_RAN_stats_noun, "data/all_RAN_stats_noun.rds")
 
