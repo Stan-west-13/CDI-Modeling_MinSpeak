@@ -61,15 +61,7 @@ feats_maximal <- expand.grid(definition = unique(noun_feats$definition),Label = 
 feats_list <- split(feats_maximal, feats_maximal$Label,drop = FALSE)
 
 
-feat_mats <- map(feats_list, function(x){
-  x <- pivot_wider(as.data.frame(xtabs(~definition+Feature, data = x,drop.unused.levels = F)),
-                   names_from = Feature,
-                   values_from = Freq)
-  x <- as.matrix(column_to_rownames(x, var = "definition"))
-  adj_mat <- ifelse(x %*% t(x) > 0,1,0)
-  diag(adj_mat) <- 0
-  return(list(feat_df = x, adj_mat = adj_mat, graph = graph_from_adjacency_matrix(adj_mat)))
-})
+feat_mats <- map(feats_list, ~noun_net(.x))
   
 ## By any feature
 noun_network <- noun_net(noun_feats)
