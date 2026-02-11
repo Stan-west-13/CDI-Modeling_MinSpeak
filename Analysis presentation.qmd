@@ -45,20 +45,32 @@ library(ggraph)
 d_netstats <- read_rds("data/all_Netstats_z_meta.rds") %>%
   mutate(metric_plot = factor(metric, 
                               levels = c("indegreemed","indegreeavg","clustcoef","meandist"),
-                              labels = c("Median_Indegree", "Average_Indegree","Clustering_Coefficient","Mean Distance")),
+                              labels = c("Median Indegree", "Average Indegree","Clustering Coefficient","Mean Distance")),
          group = factor(group, levels = c("yng", "mdl", "old")),
          netBuild = "associations")
 
 d_netstats_nouns <- read_rds("data/all_Netstats_z_meta_nouns.rds")%>%
   mutate(metric_plot = factor(metric, 
                               levels = c("indegreemed","indegreeavg","clustcoef","meandist"),
-                              labels = c("Median_Indegree", "Average_Indegree","Clustering_Coefficient","Mean Distance")),
+                              labels = c("Median Indegree", "Average Indegree","Clustering Coefficient","Mean Distance")),
          group = factor(group, levels = c("yng", "mdl", "old")),
          netBuild = "nounFeats")
-d_netstats <- rbind(d_netstats,d_netstats_nouns) %>%
+d_netstats_assoc_nouns <- read_rds("data/all_Netstats_z_meta_assoc_nouns.rds")%>%
+  mutate(metric_plot = factor(metric, 
+                              levels = c("indegreemed","indegreeavg","clustcoef","meandist"),
+                              labels = c("Median Indegree", "Average Indegree","Clustering Coefficient","Mean Distance")),
+         group = factor(group, levels = c("yng", "mdl", "old")),
+         netBuild = "associationNouns")
+
+
+d_netstats <- rbind(d_netstats,d_netstats_nouns,d_netstats_assoc_nouns) %>%
   mutate(netBuild = as.factor(netBuild),
          metric = as.factor(metric),
-         stat = as.factor(stat))
+         stat = as.factor(stat)) %>%
+  unique()
+
+
+
 matched_pps <- read_rds("data/matched_groups_single_timepoint.rds")
 
 load("data/graph_full_nounNet.Rdata")
@@ -115,8 +127,8 @@ ggsave("Figures/RAN_distance_plot.png")
 
 
 ggplot(d_netstats, aes(x = nProduced, y = value, color = stat))+
-  geom_point()+
-  geom_smooth()+
+  geom_point(size = 2, alpha = .5)+
+  theme_bw(base_size = 24)+
   facet_grid2(netBuild~metric_plot, scales = "free", independent = "all")
 ggsave("Figures/network_stats_comparison.png")
 
@@ -326,6 +338,8 @@ x <- map(d_splits_all, function(x){
 })
 
 map(x, ~map(.x, function(d){summary(d)}))
+
+
 
 
 ```

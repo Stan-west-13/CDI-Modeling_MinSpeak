@@ -20,11 +20,20 @@ child_acquisition_network <- function(child_vocab, network_of_words){
   return(acquisition_network(ix, network_of_words))
 }
 
-random_acq_network_igraph <- function(vocab_size, G){
-  env_size <- igraph::V(G)
-  ix <- sample(x = env_size, size = vocab_size, replace = TRUE)
-  return(igraph::induced_subgraph(G, ix))
+random_acq_network_igraph <- function(vocab_size, G, G_WG = NULL){
+  g <- vocab_size$graph
+  if (unique(vocab_size$form) == "WS"){
+    env_size <- igraph::V(G)
+    ix <- sample(x = env_size, size = vcount(g), replace = FALSE)
+    return(igraph::induced_subgraph(G, ix))
+  }
+  else {
+    env_size <- igraph::V(G_WG)
+    ix <- sample(x = env_size, size = vcount(g), replace = FALSE)
+    return(igraph::induced_subgraph(G_WG, ix))
+  }
 }
+
 multiSample <- function(n, x, fct, simplify2vec = FALSE) {
   y <- mapply(sample, split(x, fct), n, SIMPLIFY = FALSE)
   return(if(simplify2vec) unname(do.call(c, y)) else y)

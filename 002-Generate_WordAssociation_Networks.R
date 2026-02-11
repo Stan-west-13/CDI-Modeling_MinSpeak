@@ -17,7 +17,7 @@ noun_net <- function(x){
   m <- as.matrix(column_to_rownames(d, var = "definition"))
   adj_mat <- ifelse(m %*% t(m) > 0,1,0)
   diag(adj_mat) <- 0
-  return(list(feat_df = d, adj_mat = adj_mat, graph = graph_from_adjacency_matrix(adj_mat)))
+  return(list(feat_df = d, adj_mat = adj_mat, graph = graph_from_adjacency_matrix(adj_mat,mode = "undirected")))
 }
 
 
@@ -65,7 +65,6 @@ feat_mats <- map(feats_list, ~noun_net(.x))
   
 ## By any feature
 noun_network <- noun_net(noun_feats)
-
 save(feat_mats, file = "data/feature_graphs.Rdata")
 save(noun_network, file = "data/graph_full_nounNet.Rdata")
 
@@ -89,6 +88,9 @@ cue_resp_WG <- associations_child %>%
   filter(cue %in% cdi_WG$CDI_Metadata_compatible,
          resp %in% cue) 
 
+
+
+
 sum(unique(cue_resp_WG$cue) %in% unique(vocab_data$CDI_Metadata_compatible)) ## 393 of 395 in CDI: associations don't include babysitter name and child name
 
 ## Association matrix
@@ -99,6 +101,17 @@ adj_mat_wg <- assocNetwork_noLoops(cue_resp_WG)
 graph_FullNet <- graph_from_adjacency_matrix(adj_mat)
 graph_WG <- graph_from_adjacency_matrix(adj_mat_wg)
 
+graph_association_nouns <- induced.subgraph(graph = graph_FullNet, vids = names(V(noun_network$graph)))
+tmp <- noun_feats %>% 
+  filter(definition %in% names(V(graph_WG))) %>% 
+  select(definition) %>% 
+  unique()
+graph_association_nouns_WG <- induced.subgraph(graph = graph_WG, vids = tmp$definition)
+noun_network_WG <- induced.subgraph(noun_network$graph, vids = tmp$definition)
+
+save(noun_network_WG, file = "data/noun_network_WG.Rdata")
+save(graph_association_nouns, file = "data/association_graph_nouns.Rdata")
+save(graph_association_nouns_WG, file = "data/association_graph_nouns_WG.Rdata")
 save(adj_mat, file = "data/child_oriented_mat.Rdata")
 save(graph_FullNet, file = "data/child_oriented_graph.Rdata")
 save(graph_WG, file = "data/child_oriented_graph_wg.Rdata")
@@ -127,13 +140,23 @@ vocab_graphs <- map(vocab_splits_produced, function(x){
   return(list(graph = graph_from_adjacency_matrix(ind_adj_mat,mode = "directed"),form = x$form))
 })
 
+## Construct individual noun association networks
+vocab_graphs_association_nouns <- map(vocab_splits_produced, function(x){
+  x <- x %>%
+    filter(lexical_class == "nouns")
+  ind_adj_mat <- as.matrix(adj_mat[rownames(adj_mat) %in% x$CDI_Metadata_compatible,colnames(adj_mat) %in% x$CDI_Metadata_compatible])
+  return(list(graph = graph_from_adjacency_matrix(ind_adj_mat,mode = "directed"),form = x$form))
+})
+
+save(vocab_graphs_association_nouns, file = "data/association_ind_graphs_nouns.Rdata")
+
 save(vocab_graphs,file = "data/individual_networks.Rdata")
 
 ## Individual noun networks by label
 ind_noun_graphs <- map(vocab_splits_produced, function(x){
   map(feat_mats, function(y){
     ind_adj_mat <- as.matrix(y$adj_mat[rownames(y$adj_mat) %in% x$CDI_Metadata_compatible,colnames(y$adj_mat) %in% x$CDI_Metadata_compatible])
-    return(list(graph = graph_from_adjacency_matrix(ind_adj_mat,mode = "directed"),form = x$form))
+    return(list(graph = graph_from_adjacency_matrix(ind_adj_mat,mode = "undirected"),form = x$form))
   })
 })
 
@@ -144,7 +167,7 @@ ind_noun_graphs_anyfeat <- map(vocab_splits_produced, function(x){
   x <- x %>%
     filter(lexical_class == "nouns")
   ind_adj_mat <- as.matrix(noun_network$adj_mat[rownames(noun_network$adj_mat) %in% x$CDI_Metadata_compatible,colnames(noun_network$adj_mat) %in% x$CDI_Metadata_compatible])
-  return(list(graph = graph_from_adjacency_matrix(ind_adj_mat,mode = "directed"),form = x$form))
+  return(list(graph = graph_from_adjacency_matrix(ind_adj_mat,mode = "undirected"),form = x$form))
 })
 
 save(ind_noun_graphs_anyfeat,file = "data/ind_noun_graphs_anyfeat.Rdata")
