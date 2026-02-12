@@ -30,11 +30,14 @@ load("data/individual_networks.Rdata")
 load("data/child_oriented_graph.Rdata")
 load("data/child_oriented_graph_wg.Rdata")
 load("data/ind_noun_graphs_anyfeat.Rdata")
+load("data/ind_noun_graphs_anyfeat_TRA.Rdata")
 load("data/association_ind_graphs_nouns.Rdata")
 load("data/graph_full_nounNet.Rdata")
 load("data/association_graph_nouns.Rdata")
 load("data/association_graph_nouns_WG.Rdata")
 load("data/noun_network_WG.Rdata")
+load("data/noun_network_WG_TRA.Rdata")
+load("data/graph_full_nounNet_TRA.Rdata")
 cdi <- readRDS("data/cdi-metadata.rds")
 cdi_WG <- readRDS("data/cdi_WG.rds")
 cdi$POS <- ifelse(cdi$lexical_class == "nouns"|cdi$lexical_class=="verbs",cdi$lexical_class, "other")
@@ -111,8 +114,9 @@ clusterSetRNGStream(cl)
 # package, make sure to use the package::function referencing.
 invisible(clusterExport(cl, c("vocab_graphs", "graph_FullNet","vocab_graphs_association_nouns", "vertices_POS_child","vertices_POS_child_wg",
                               "random_acq_network_igraph","graph_association_nouns_WG", 
-                              "network_stats", "balanced_RAN_stats","vcount", "multiSample", "indegree_igraph",
-                              "graph_association_nouns","balanced_RAN_network")))
+                              "network_stats", "balanced_RAN_stats","balanced_RAN_network","V","vcount", "multiSample", "indegree_igraph",
+                              "graph_association_nouns")))
+
 
 # Finally, run with parLapply. Running 1000 replications takes less than two minutes.
 starttime <- proc.time()
@@ -241,7 +245,7 @@ clusterSetRNGStream(cl)
 # Export everything needed to run the operation, including any data or
 # functions you have defined. If a function you have written relies on a
 # package, make sure to use the package::function referencing.
-invisible(clusterExport(cl, c("ind_noun_graphs_anyfeat", "noun_network", "vertices_POS_child_noun",
+invisible(clusterExport(cl, c("ind_noun_graphs_anyfeat", "ind_noun_graphs_anyfeat_TRA","noun_network", "vertices_POS_child_noun",
                               "random_acq_network_igraph", "network_stats", "balanced_RAN_stats_noun", "vcount","multiSample", "indegree_igraph")))
 
 # Finally, run with parLapply. Running 1000 replications takes less than two minutes.
@@ -250,8 +254,12 @@ stats_ASD_RAN_noun <- parLapply(cl, keep(ind_noun_graphs_anyfeat,~vcount(.x$grap
                            function(vocab_graph,G,G_WG) replicate(1000, network_stats(random_acq_network_igraph(vocab_graph,G,G_WG))),
                            G = noun_network$graph,G_WG = noun_network_WG)
 
+stats_ASD_RAN_noun_TRA <- parLapply(cl, keep(ind_noun_graphs_anyfeat_TRA,~vcount(.x$graph)>0),
+                                function(vocab_graph,G,G_WG) replicate(1000, network_stats(random_acq_network_igraph(vocab_graph,G,G_WG))),
+                                G = noun_network_TRA$graph,G_WG = noun_network_WG_TRA)
 
 save(stats_ASD_RAN_noun, file = "data/Noun_Child_Stats_ASD_balRAN_1000.Rdata")
+save(stats_ASD_RAN_noun_TRA, file = "data/Noun_TRA_Child_Stats_ASD_balRAN_1000.Rdata")
 
 
 
@@ -285,5 +293,25 @@ write_rds(all_RAN_stats_noun, "data/all_RAN_stats_noun.rds")
 
 
 
+## Format RAN stats
+mean_RAN_noun_TRA <- stats_ASD_RAN_noun_TRA %>% 
+  map_dfr(., .f = rowMeans, na.rm = TRUE, .id = "subjectkey_intAge") %>%
+  rename(indegreeavg_RAN_mean = indegreeavg,
+         indegreemed_RAN_mean = indegreemed,
+         clustcoef_RAN_mean = clustcoef,
+         meandist_RAN_mean = meandist)
+
+sd_RAN_noun_TRA <- stats_ASD_RAN_noun_TRA %>% 
+  map_dfr(., .f = row_SD,  .id = "subjectkey_intAge") %>%
+  rename(indegreeavg_RAN_sd = indegreeavg,
+         indegreemed_RAN_sd = indegreemed,
+         clustcoef_RAN_sd = clustcoef,
+         meandist_RAN_sd = meandist) 
+
+
+## Descriptives for 1000 RAN iterations
+all_RAN_stats_noun_TRA <- left_join(mean_RAN_noun_TRA,sd_RAN_noun_TRA)
+
+write_rds(all_RAN_stats_noun_TRA, "data/all_RAN_stats_noun_TRA.rds")
 
 
