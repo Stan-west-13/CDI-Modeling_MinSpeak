@@ -26,7 +26,8 @@ load("data/associations-child.Rdata")
 vocab_data <- read_rds("data/combined_CDILetti.rds")
 cdi_WG <- read_rds("data/cdi_WG.rds")
 noun_feats <- read.csv("data/MBCDI_concsFeats_2022-07-14.csv")
-
+noun_feats_TRA <- noun_feats %>%
+  filter(Toddler_Access > 4)
 
 ## Resolve inconsistencies between cues/CDI: Association cues in the CoxHae set are slightly different from CDI.
 x <- data.frame(vocab = unique(vocab_data$CDI_Metadata_compatible)) ## Unique Vocab words
@@ -65,9 +66,10 @@ feat_mats <- map(feats_list, ~noun_net(.x))
   
 ## By any feature
 noun_network <- noun_net(noun_feats)
+noun_network_TRA <- noun_net(noun_feats_TRA)
 save(feat_mats, file = "data/feature_graphs.Rdata")
 save(noun_network, file = "data/graph_full_nounNet.Rdata")
-
+save(noun_network_TRA, file = "data/graph_full_nounNet_TRA.Rdata")
 ## Cue-response table for association matrix
 
 cue_resp <- associations_child %>%
@@ -106,9 +108,15 @@ tmp <- noun_feats %>%
   filter(definition %in% names(V(graph_WG))) %>% 
   select(definition) %>% 
   unique()
+tmp_TRA <- noun_feats_TRA %>% 
+  filter(definition %in% names(V(graph_WG))) %>% 
+  select(definition) %>% 
+  unique()
+
 graph_association_nouns_WG <- induced.subgraph(graph = graph_WG, vids = tmp$definition)
 noun_network_WG <- induced.subgraph(noun_network$graph, vids = tmp$definition)
-
+noun_network_WG_TRA <-  induced_subgraph(noun_network_TRA$graph, vids = tmp_TRA$definition)
+save(noun_network_WG_TRA, file = "data/noun_network_WG_TRA.Rdata")
 save(noun_network_WG, file = "data/noun_network_WG.Rdata")
 save(graph_association_nouns, file = "data/association_graph_nouns.Rdata")
 save(graph_association_nouns_WG, file = "data/association_graph_nouns_WG.Rdata")
@@ -171,3 +179,17 @@ ind_noun_graphs_anyfeat <- map(vocab_splits_produced, function(x){
 })
 
 save(ind_noun_graphs_anyfeat,file = "data/ind_noun_graphs_anyfeat.Rdata")
+
+## Individual noun networks any feature
+ind_noun_graphs_anyfeat_TRA <- map(vocab_splits_produced, function(x){
+  x <- x %>%
+    filter(lexical_class == "nouns")
+  ind_adj_mat <- as.matrix(noun_network_TRA$adj_mat[rownames(noun_network_TRA$adj_mat) %in% x$CDI_Metadata_compatible,colnames(noun_network_TRA$adj_mat) %in% x$CDI_Metadata_compatible])
+  return(list(graph = graph_from_adjacency_matrix(ind_adj_mat,mode = "undirected"),form = x$form))
+})
+
+save(ind_noun_graphs_anyfeat_TRA,file = "data/ind_noun_graphs_anyfeat_TRA.Rdata")
+
+
+
+
