@@ -111,8 +111,8 @@ clusterSetRNGStream(cl)
 # package, make sure to use the package::function referencing.
 invisible(clusterExport(cl, c("vocab_graphs", "graph_FullNet","vocab_graphs_association_nouns", "vertices_POS_child","vertices_POS_child_wg",
                               "random_acq_network_igraph","graph_association_nouns_WG", 
-                              "network_stats", "balanced_RAN_stats","V", "multiSample", "indegree_igraph",
-                              "graph_association_nouns")))
+                              "network_stats", "balanced_RAN_stats","vcount", "multiSample", "indegree_igraph",
+                              "graph_association_nouns","balanced_RAN_network")))
 
 # Finally, run with parLapply. Running 1000 replications takes less than two minutes.
 starttime <- proc.time()
