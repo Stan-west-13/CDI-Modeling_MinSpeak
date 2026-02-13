@@ -1,0 +1,389 @@
+---
+title: "Standardized Network Analysis-CRCdata"
+author: "Stanley West"
+format: 
+  revealjs:
+    embed-resources: true
+    self-contained-math: true
+    scrollable: true
+    smaller: true
+    fig-width: 24
+    fig-height: 12
+    fig-align: center
+    
+    
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+# The Data {.smaller .scrollable}
+
+-   Up to this point, individual lexical networks have been constructed
+    for each child, with edges drawn according to forward association
+    (i.e., cue -\> response) relationships via child-oriented word
+    association norms ([Cox & Haebig,
+    2023](https://link.springer.com/content/pdf/10.3758/s13428-022-01790-y.pdf)),
+    or noun feature norms ([Borovsky, Peters, Cox, &
+    McRae](https://link.springer.com/article/10.3758/s13428-023-02242-x)),
+    both with all features, and with features filtered to only include a
+    toddler accessibility rating (TAR) greater than 4.
+    -   Network statistics including in-degree (number of incoming
+        connections; median and average), global clustering coefficient
+        (ratio of number of triangles to the number of possible
+        triangles, average), average shortest path length (ASPL, average
+        edge distance between nodes) were computed for each child.
+    -   These values were standardized according to 1,000 individualized
+        pseudo-random acquisition networks (RAN) for each child where
+        the number of nodes as well as the number of nouns, verbs, and
+        other words were matched to the child's vocabulary. These random
+        networks were sampled from a main network of all the words
+        available on the Words and Sentences and Words and Gestures
+        forms, respectively. That is, a child's RAN network sample
+        consisted of only the words that appear on the form from which
+        their actual vocabulary network was contrived .
+
+```{r,echo = FALSE}
+library(tidyverse)
+library(ggplot2)
+library(purrr)
+library(MatchIt)
+library(ggh4x)
+library(plotly)
+library(ggraph)
+
+d_netstats <- read_rds("data/formatted_metadata_crc.rds") %>%
+  mutate(nProduced = nproduced,
+         netBuild = network,
+         metric_plot = factor(netstat, levels = c("degree","clust","dist"),
+                              labels = c("Median Indegree", "Clustering Coefficient", "ASPL")),
+         z = vocab_RANz)
+
+
+matched_pps <- read_rds("data/matched_groups_single_timepoint.rds")
+
+load("data/graph_full_nounNet.Rdata")
+load("data/child_oriented_graph.Rdata")
+
+```
+
+## Overall Statistic Trajectories Over Vocabulary Size and Age {.smaller .scrollable}
+
+-   Looking at the distributions of raw and RAN scores across the
+    different network constructions.
+
+    -   'mean' and 'sd' in the bottom plot indicate averages and
+        standard deviations of the RAN simulated statistics.
+
+    -   The deviation of RAN mean estimations are due to the separate
+        RAN simulations for the WS and WG forms.
+
+```{r}
+
+ggplot(d_netstats %>% 
+         ungroup() %>%
+         select(nProduced,z,netBuild,metric_plot) %>%
+         unique(), aes(x= nProduced, y = z, color = netBuild))+
+  geom_point()+
+  geom_smooth()+
+  theme_bw(base_size = 24)+
+  facet_wrap(~metric_plot)+
+  geom_hline(yintercept = 0)
+
+ggplot(d_netstats %>% 
+         filter(type == "vocab"), aes(x = nProduced, y = value))+
+  geom_point()+
+  geom_smooth(method = "loess")+
+  facet_grid2(netBuild~metric_plot,scales = "free", independent = "all")+
+  theme_bw(base_size = 24)+
+  labs(title = "True Scores Across Vocabuary")
+
+ggplot(d_netstats %>% 
+         filter(type == "randomM"), aes(x = nProduced, y = value))+
+  geom_point()+
+  geom_smooth(method = "loess")+
+  facet_grid2(netBuild~metric_plot,scales = "free", independent = "all")+
+  theme_bw(base_size = 24)+
+  labs(title = "RAN Mean Scores Across Vocabuary")
+
+ggplot(d_netstats %>% 
+         filter(type == "randomS"), aes(x = nProduced, y = value))+
+  geom_point()+
+  geom_smooth(method = "loess")+
+  facet_grid2(netBuild~metric_plot,scales = "free", independent = "all")+
+  theme_bw(base_size = 24)+
+  labs(title = "RAN SD Scores Across Vocabuary")
+
+
+ggplot(d_netstats, aes(x = nProduced, y = z))+
+  geom_point()+
+  geom_smooth(method = "loess")+
+  facet_grid2(netBuild~metric_plot,scales = "free",independent = "all")+
+  theme_bw(base_size = 24)+
+  labs(title = "Standardized Scores across vocabuary")
+
+
+# ggplot(d_netstats %>%
+#          group_by(subjectkey_intAge,metric,netBuild) %>%
+#          mutate(RAN_dist = (value[stat == "truestat"] - value[stat =="mean"])), aes(x = nProduced,y = RAN_dist, fill = netBuild))+
+#   geom_col(position = "dodge")+
+#   facet_wrap2(~metric_plot,scales = "free")+
+#   theme_bw(base_size = 24)+
+#   labs(y = "true stat - mean RAN stat")
+# 
+# ggsave("Figures/RAN_distance_plot.png")
+
+
+ggplot(d_netstats%>% 
+         ungroup() %>%
+         select(nProduced,value,type,netBuild,metric_plot) %>%
+         unique(), aes(x = nProduced, y = value, color = type))+
+  geom_point(size = 2, alpha = .5)+
+  theme_bw(base_size = 24)+
+  facet_grid2(netBuild~metric_plot, scales = "free", independent = "all")
+ggsave("Figures/network_stats_comparison.png")
+
+
+```
+
+## Plotting unmatched statistic distributions over production {.smaller .scrollable .hidden}
+
+-   Distributions across the unmatched samples look similar, especially
+    at smaller vocabularies.
+-   However, this is still collapsed across forms.
+
+```{r}
+
+ggplot(d_netstats %>% 
+         filter(form == "WS"), aes(x = nProduced, y = z, color = group))+
+  facet_grid2(netBuild~metric_plot,scales = "free",independent = "all")+
+  geom_smooth(method = "lm",
+              formula = y~poly(x,3))+
+  theme_bw(base_size = 24)+
+  labs(title = "Unmatched Statistic Distrubution Over Production - Words & Sentences",
+       x = "Productive Vocabulary",
+       y = "Z-scored Network Statistic")
+
+ggplot(d_netstats %>% 
+         filter(form == "WG"), aes(x = nProduced, y = z, color = group))+
+  geom_point() +
+  facet_grid2(netBuild~metric_plot,scales = "free",independent = "all")+
+  geom_smooth(method = "lm",
+              formula = y~poly(x,3))+
+  theme_bw(base_size = 24)+
+  labs(title = "Unmatched Statistic Distrubution Over Production - Words & Gestures",
+       x = "Productive Vocabulary",
+       y = "Z-scored Network Statistic")
+
+
+
+ggplot(d_netstats , aes(x = group, y = z, color = group))+
+  geom_violin() +
+  geom_boxplot(width = 0.2, fill = "lightgrey")+
+  facet_grid2(netBuild~metric_plot,scales = "free",independent = "all")+
+  theme_bw(base_size = 24)+
+  labs(title = "Unmatched Statistic Boxplots Over Group ",
+       x = "Group",
+       y = "Z-scored Network Statistic")
+
+```
+
+-   The middle group does not have any child with production past 100
+    for the words and gestures form, making it hard to compare to the
+    other groups, so we removed this group.
+
+## First Administrations - Both Forms
+
+-   Including both WS and WG, but only taking the first administration:
+    -   Removing 4 largest vocabularies in the delay group to help with
+        matching
+-   nProduced is the number of nouns produced.
+
+```{r}
+
+
+mdl_split <- d_netstats %>%
+  filter(group == "mdl",
+         (nProduced <=110 & interview_age >= 60)) %>%
+  mutate(group_two = "delay",
+         group_two = as.factor(group_two))
+
+
+d_netstats_first <- d_netstats %>%
+  filter(!group == "mdl",nProduced >= 3) %>%
+  mutate(group_two = factor(ifelse(group == "yng","no_delay","delay"), levels = c("delay","no_delay"), labels = c("delay","no_delay")))%>%
+  filter(type == "vocab") %>%
+  rbind(mdl_split)%>%
+  ungroup() %>%
+  filter(!(group_two == "delay" & nProduced > 250))
+
+
+d_netstats_first %>%
+  select(subjectkey,group_two,nProduced, interview_age,netBuild) %>%
+  unique() %>%
+  group_by(group_two,netBuild) %>%
+  summarize(n = n(),
+            mean_nProduced = mean(nProduced),
+            sd_nProduced = sd(nProduced),
+            mean_age = mean(interview_age),
+            sd_age = sd(interview_age)) %>%
+  as.data.frame()
+
+
+d_netstats_first$group_two <- relevel(d_netstats_first$group_two, ref = "no_delay")
+
+```
+
+## Matching to the minimally speaking group.
+
+-   Welch two sample t-test revealed no significant difference in
+    productive vocabulary between groups $t(79.59) = -0.71, p = 0.481$.
+
+```{r}
+
+noun_assoc_split <- split(d_netstats_first,d_netstats_first$netBuild)
+
+
+match_noun_assoc <- map(noun_assoc_split, function(x){
+  matchit_all <- x %>%
+    select(subjectkey, interview_age,nProduced, group_two) %>%
+    unique() %>%
+    matchit(group_two ~ nProduced, data = ., method = "optimal", distance = "glm"  ,ratio = 3)
+  match_df <- x %>%
+     filter(subjectkey %in% match.data(matchit_all)$subjectkey) 
+  return(match_df)
+})
+
+map(match_noun_assoc, function(x){
+  x %>%
+    select(subjectkey,nProduced,group_two) %>%
+    unique() %>%
+    t.test(nProduced~group_two, data = .)
+})[1]
+
+
+```
+
+-   Keeping both WS and WG forms, we match the no-delay group to the 45
+    delayed children, allowing the no-delay group to be 2x bigger.
+
+```{r, echo =  FALSE,fig.width=48, fig.height=12, fig.fullwidth=TRUE}
+
+map(match_noun_assoc, function(x){
+  x %>%
+    select(subjectkey,interview_age,nProduced,group_two) %>%
+    unique() %>%
+    group_by(group_two) %>%
+    summarize(n = n(),
+              mean_age = mean(interview_age),
+              mean_produced = mean(nProduced),
+              sd_age = sd(interview_age),
+              sd_produced = sd(nProduced)) %>%
+    as.data.frame()
+})[1]
+
+map(match_noun_assoc, ~
+        ggplot(.x, aes(x = nProduced, color = group_two))+
+          geom_density(size = 2)+
+          theme_bw(base_size = 52)+
+          labs(title = paste0("Matching between groups ", unique(.x$netBuild))))[1]
+
+map(match_noun_assoc, ~
+        ggplot(.x, aes(x = nProduced, , y = interview_age,color = group_two))+
+          geom_point(size = 13)+
+          theme_bw(base_size = 52)+
+          labs(title = paste0("Matching between groups ", unique(.x$netBuild))))[1]
+
+
+```
+
+## Run Linear Models {.smaller .scrollable}
+
+-   Number of words produced was re-factored to account for third-order
+    polynomial trends in the network statistics
+
+-   Nested model comparisons revealed that only including linear and
+    quadratic trends leads to best model fit.
+
+-   Linear models were run regressing
+    $network_{statistic} \sim (linear_{nproduced} + quadratic_{nproduced})  * group$
+
+-   Noun Features (TAR filtered):
+
+    -   No group differences or interactions
+
+-   Noun-only Associations:
+
+    -   Group main effect in median indegree and ASPL where the networks
+        in the no-delay group have more incoming connections on average
+        and smaller distances between nodes.
+
+    -   Additional interaction between group and linear trends for ASPL.
+
+```{r, echo = TRUE}
+
+nProduced_poly_all <- match_noun_assoc %>%
+  map(~ .x %>%
+        ungroup() %>%
+        select(nProduced) %>%
+        unique() %>%
+        cbind(poly(.$nProduced,3)) %>%
+        rename(linear = "1",
+               quadratic = "2",
+               cubic = "3"))
+
+matched_df_poly_all <- map2(match_noun_assoc,nProduced_poly_all, function(x,y){
+                              x %>%
+                              left_join(y) %>%
+                              filter(type == "vocab")
+}) 
+ 
+
+d_splits_all <- matched_df_poly_all %>%
+  map(~ split(.x,.x$metric_plot))
+
+map(d_splits_all, function(x){
+  map(x, function(y){
+     m1 <- lm(z~linear*group_two, data = y)
+     m2 <- lm(z~(linear+quadratic)*group_two, data = y)
+     m3 <- lm(z~(linear+quadratic+cubic)*group_two, data = y )
+  return(anova(m1,m2,m3))
+  })
+})
+
+
+
+x<- map(d_splits_all, function(x){
+    map(x, function(d){ 
+      d$group_two <- relevel(d$group_two, ref = "no_delay")
+          lm(z ~ (linear+quadratic)*group_two, data = d,)
+      })
+})
+
+map(x, ~map(.x, function(d){summary(d)}))
+
+
+
+
+```
+
+## Plot the Trends
+
+```{r}
+
+map(matched_df_poly_all, ~ ggplot(.x %>% 
+         filter(type == "vocab"), aes(x = nProduced, y = z, color = group_two))+
+  #geom_point()+
+  theme_bw(base_size = 24) +
+  geom_smooth(method = "lm",
+              formula = y ~ poly(x,3))+
+  facet_grid(~metric_plot)+
+  labs(title = "Network Statistic Trajectory by Group",
+       subtitle = paste("Network Construction:",unique(.x$netBuild))))
+
+
+
+
+```
+
+# 
