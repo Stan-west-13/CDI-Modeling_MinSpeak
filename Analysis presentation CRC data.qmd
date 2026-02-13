@@ -314,12 +314,12 @@ map(match_noun_assoc, ~
         trend, for both groups. There is a main effect of group whereby
         indegree is higher on average for the delayed group.
 
-    -   There are no trends, linear or quadradic, for the clustering
+    -   There are no trends, linear or quadratic, for the clustering
         coefficient, but there is a main effect of group whereby the
         delayed group tends to have higher clustering coefficients on
         average.
 
-    -   There is a negative linear trend (and no quadradic trend) of
+    -   There is a negative linear trend (and no quadratic trend) of
         ASPL for both groups, and this trend does not differ between
         groups, nor is there a difference of means.
 
