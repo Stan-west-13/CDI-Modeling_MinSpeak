@@ -11,13 +11,10 @@ library(tibble)
 source("R/assocNetwork.R")
 
 noun_net <- function(x){
-  d <- pivot_wider(as.data.frame(xtabs(~definition+Feature, data = x,drop.unused.levels = F)),
-                   names_from = Feature,
-                   values_from = Freq)
-  m <- as.matrix(column_to_rownames(d, var = "definition"))
-  adj_mat <- ifelse(m %*% t(m) > 0,1,0)
+  d <- xtabs(~definition+Feature, data = x,drop.unused.levels = F)
+  adj_mat <- ifelse(d %*% t(d) > 0,1,0)
   diag(adj_mat) <- 0
-  return(list(feat_df = d, adj_mat = adj_mat, graph = graph_from_adjacency_matrix(adj_mat,mode = "undirected")))
+  return(list(feat_df = d, adj_mat = adj_mat, graph = igraph::simplify(graph_from_adjacency_matrix(adj_mat,mode = "undirected"))))
 }
 
 
@@ -28,6 +25,8 @@ cdi_WG <- read_rds("data/cdi_WG.rds")
 noun_feats <- read.csv("data/MBCDI_concsFeats_2022-07-14.csv")
 noun_feats_TRA <- noun_feats %>%
   filter(Toddler_Access > 4)
+
+
 
 ## Resolve inconsistencies between cues/CDI: Association cues in the CoxHae set are slightly different from CDI.
 x <- data.frame(vocab = unique(vocab_data$CDI_Metadata_compatible)) ## Unique Vocab words
@@ -52,24 +51,13 @@ best_match <- stringdist_join(match_set,
 best_match[best_match$cue == "pet (noun)",]$vocab <- "pet's name" ## only one it couldn't match
 
 ## 'tv' in the noun features is the only word that does not match 'TV' in the vocab data
-
+sum(unique(noun_feats$definition) %in% unique(vocab_data$CDI_Metadata_compatible))
 noun_feats$definition[noun_feats$definition =="tv"] <- "TV" #fixing discrepancy
+noun_feats_TRA$definition[noun_feats_TRA$definition =="tv"] <- "TV" #fixing discrepancy
 
 
-## Different feature lists: by Label
-feats_maximal <- expand.grid(definition = unique(noun_feats$definition),Label = unique(noun_feats$BR_Label)) %>%
-  left_join(select(noun_feats,definition, BR_Label,Feature), by = c("definition", "Label" = "BR_Label"))
-feats_list <- split(feats_maximal, feats_maximal$Label,drop = FALSE)
 
 
-feat_mats <- map(feats_list, ~noun_net(.x))
-  
-## By any feature
-noun_network <- noun_net(noun_feats)
-noun_network_TRA <- noun_net(noun_feats_TRA)
-save(feat_mats, file = "data/feature_graphs.Rdata")
-save(noun_network, file = "data/graph_full_nounNet.Rdata")
-save(noun_network_TRA, file = "data/graph_full_nounNet_TRA.Rdata")
 ## Cue-response table for association matrix
 
 cue_resp <- associations_child %>%
@@ -103,7 +91,25 @@ adj_mat_wg <- assocNetwork_noLoops(cue_resp_WG)
 graph_FullNet <- graph_from_adjacency_matrix(adj_mat)
 graph_WG <- graph_from_adjacency_matrix(adj_mat_wg)
 
+## Noun Different feature lists: by Label
+feats_maximal <- expand.grid(definition = unique(noun_feats$definition),Label = unique(noun_feats$BR_Label)) %>%
+  left_join(select(noun_feats,definition, BR_Label,Feature), by = c("definition", "Label" = "BR_Label"))
+feats_list <- split(feats_maximal, feats_maximal$Label,drop = FALSE)
+
+
+feat_mats <- map(feats_list, ~noun_net(.x))
+
+## By any feature
+noun_network <- noun_net(noun_feats)
+noun_network_TRA <- noun_net(noun_feats_TRA)
+save(feat_mats, file = "data/feature_graphs.Rdata")
+save(noun_network, file = "data/graph_full_nounNet.Rdata")
+save(noun_network_TRA, file = "data/graph_full_nounNet_TRA.Rdata")
+
+
 graph_association_nouns <- induced.subgraph(graph = graph_FullNet, vids = names(V(noun_network$graph)))
+noun_assoc_adj_mat <- adj_mat[rownames(adj_mat) %in% names(V(graph_association_nouns)),colnames(adj_mat) %in% names(V(graph_association_nouns))]
+
 tmp <- noun_feats %>% 
   filter(definition %in% names(V(graph_WG))) %>% 
   select(definition) %>% 
@@ -113,9 +119,16 @@ tmp_TRA <- noun_feats_TRA %>%
   select(definition) %>% 
   unique()
 
+
 graph_association_nouns_WG <- induced.subgraph(graph = graph_WG, vids = tmp$definition)
 noun_network_WG <- induced.subgraph(noun_network$graph, vids = tmp$definition)
 noun_network_WG_TRA <-  induced_subgraph(noun_network_TRA$graph, vids = tmp_TRA$definition)
+
+
+
+
+
+
 save(noun_network_WG_TRA, file = "data/noun_network_WG_TRA.Rdata")
 save(noun_network_WG, file = "data/noun_network_WG.Rdata")
 save(graph_association_nouns, file = "data/association_graph_nouns.Rdata")
@@ -152,7 +165,7 @@ vocab_graphs <- map(vocab_splits_produced, function(x){
 vocab_graphs_association_nouns <- map(vocab_splits_produced, function(x){
   x <- x %>%
     filter(lexical_class == "nouns")
-  ind_adj_mat <- as.matrix(adj_mat[rownames(adj_mat) %in% x$CDI_Metadata_compatible,colnames(adj_mat) %in% x$CDI_Metadata_compatible])
+  ind_adj_mat <- as.matrix(noun_assoc_adj_mat[rownames(noun_assoc_adj_mat) %in% x$CDI_Metadata_compatible,colnames(noun_assoc_adj_mat) %in% x$CDI_Metadata_compatible])
   return(list(graph = graph_from_adjacency_matrix(ind_adj_mat,mode = "directed"),form = x$form))
 })
 

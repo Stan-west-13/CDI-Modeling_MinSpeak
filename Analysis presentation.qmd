@@ -23,16 +23,25 @@ editor:
     for each child, with edges drawn according to forward association
     (i.e., cue -\> response) relationships via child-oriented word
     association norms ([Cox & Haebig,
-    2023](https://link.springer.com/content/pdf/10.3758/s13428-022-01790-y.pdf))
+    2023](https://link.springer.com/content/pdf/10.3758/s13428-022-01790-y.pdf)),
+    or noun feature norms ([Borovsky, Peters, Cox, &
+    McRae](https://link.springer.com/article/10.3758/s13428-023-02242-x)),
+    both with all features, and with features filtered to only include a
+    toddler accessibility rating (TAR) greater than 4.
     -   Network statistics including in-degree (number of incoming
-        connections), global clustering coefficient (ratio of number of
-        triangles to the number of possible triangles), mean average
-        shortest path length (ASPL, average edge distance between nodes)
-        were computed for each child.
--   These values were standardized according to 1,000 individualized
-    pseudo-random acquisition networks for each child where the number
-    of nodes as well as the number of nouns, verbs, and other words were
-    matched to the child's vocabulary.
+        connections; median and average), global clustering coefficient
+        (ratio of number of triangles to the number of possible
+        triangles, average), average shortest path length (ASPL, average
+        edge distance between nodes) were computed for each child.
+    -   These values were standardized according to 1,000 individualized
+        pseudo-random acquisition networks (RAN) for each child where
+        the number of nodes as well as the number of nouns, verbs, and
+        other words were matched to the child's vocabulary. These random
+        networks were sampled from a main network of all the words
+        available on the Words and Sentences and Words and Gestures
+        forms, respectively. That is, a child's RAN network sample
+        consisted of only the words that appear on the form from which
+        their actual vocabulary network was contrived .
 
 ```{r,echo = FALSE}
 library(tidyverse)
@@ -42,12 +51,21 @@ library(MatchIt)
 library(ggh4x)
 library(plotly)
 library(ggraph)
-d_netstats <- read_rds("data/all_Netstats_z_meta.rds") %>%
-  mutate(metric_plot = factor(metric, 
+d_associations <- read_rds("data/all_Netstats_z_meta.rds") %>%
+  mutate(metric_plot = factor(metric,
                               levels = c("indegreemed","indegreeavg","clustcoef","meandist"),
                               labels = c("Median Indegree", "Average Indegree","Clustering Coefficient","Mean Distance")),
          group = factor(group, levels = c("yng", "mdl", "old")),
          netBuild = "associations")
+
+
+d_netstats_nouns_TAR <- read_rds("data/all_Netstats_z_meta_nouns_TAR.rds")%>%
+  mutate(metric_plot = factor(metric, 
+                              levels = c("indegreemed","indegreeavg","clustcoef","meandist"),
+                              labels = c("Median Indegree", "Average Indegree","Clustering Coefficient","Mean Distance")),
+         group = factor(group, levels = c("yng", "mdl", "old")),
+         netBuild = "nounFeatsTAR")
+
 
 d_netstats_nouns <- read_rds("data/all_Netstats_z_meta_nouns.rds")%>%
   mutate(metric_plot = factor(metric, 
@@ -63,24 +81,37 @@ d_netstats_assoc_nouns <- read_rds("data/all_Netstats_z_meta_assoc_nouns.rds")%>
          netBuild = "associationNouns")
 
 
-d_netstats <- rbind(d_netstats,d_netstats_nouns,d_netstats_assoc_nouns) %>%
-  mutate(netBuild = as.factor(netBuild),
+d_netstats <- rbind(d_netstats_nouns_TAR,d_netstats_nouns,d_netstats_assoc_nouns) %>%
+  mutate(netBuild = factor(netBuild, 
+                           labels = c("nounFeatsTAR",
+                                      "nounFeats",
+                                      "associationNouns"),
+                           levels = c("nounFeatsTAR",
+                                      "nounFeats",
+                                      "associationNouns")
+                           ),
          metric = as.factor(metric),
          stat = as.factor(stat)) %>%
   unique()
 
 
 
-matched_pps <- read_rds("data/matched_groups_single_timepoint.rds")
-
-load("data/graph_full_nounNet.Rdata")
-load("data/child_oriented_graph.Rdata")
 
 ```
 
 ## Overall Statistic Trajectories Over Vocabulary Size and Age {.smaller .scrollable}
 
+-   Looking at the distributions of raw and RAN scores across the
+    different network constructions.
+
+    -   'mean' and 'sd' in the bottom plot indicate averages and
+        standard deviations of the RAN simulated statistics.
+
+    -   The deviation of RAN mean estimations are due to the separate
+        RAN simulations for the WS and WG forms.
+
 ```{r}
+
 
 ggplot(d_netstats %>% 
          filter(origin == "truenet"& stat == "truestat"), aes(x = nProduced, y = value))+
@@ -115,27 +146,41 @@ ggplot(d_netstats, aes(x = nProduced, y = z))+
   labs(title = "Standardized Scores across vocabuary")
 
 
-ggplot(d_netstats %>%
-         group_by(subjectkey_intAge,metric,netBuild) %>%
-         mutate(RAN_dist = (value[stat == "truestat"] - value[stat =="mean"])), aes(x = nProduced,y = RAN_dist, fill = netBuild))+
-  geom_col(position = "dodge")+
-  facet_wrap2(~metric_plot,scales = "free")+
-  theme_bw(base_size = 24)+
-  labs(y = "true stat - mean RAN stat")
+# ggplot(d_netstats %>%
+#          group_by(subjectkey_intAge,metric,netBuild) %>%
+#          mutate(RAN_dist = (value[stat == "truestat"] - value[stat =="mean"])), aes(x = nProduced,y = RAN_dist, fill = netBuild))+
+#   geom_col(position = "dodge")+
+#   facet_wrap2(~metric_plot,scales = "free")+
+#   theme_bw(base_size = 24)+
+#   labs(y = "true stat - mean RAN stat")
+# 
+# ggsave("Figures/RAN_distance_plot.png")
 
-ggsave("Figures/RAN_distance_plot.png")
 
-
-ggplot(d_netstats, aes(x = nProduced, y = value, color = stat))+
+ggplot(d_netstats%>% 
+         ungroup() %>%
+         select(nProduced,value,stat,netBuild,metric_plot) %>%
+         unique(), aes(x = nProduced, y = value, color = stat))+
   geom_point(size = 2, alpha = .5)+
   theme_bw(base_size = 24)+
   facet_grid2(netBuild~metric_plot, scales = "free", independent = "all")
 ggsave("Figures/network_stats_comparison.png")
 
 
+ggplot(d_netstats %>% 
+         ungroup() %>%
+         select(nProduced,z,netBuild,metric_plot) %>%
+         unique(), aes(x= nProduced, y = z, color = netBuild))+
+  geom_point()+
+  geom_smooth()+
+  facet_wrap(~metric_plot)+
+  geom_hline(yintercept = 0)+
+  ggtitle("Z-score distribution across statistics")
+
+
 ```
 
-## Plotting unmatched statistic distributions over production {.smaller .scrollable}
+## Plotting unmatched statistic distributions over production {.smaller .scrollable .hidden}
 
 -   Distributions across the unmatched samples look similar, especially
     at smaller vocabularies.
@@ -179,21 +224,30 @@ ggplot(d_netstats , aes(x = group, y = z, color = group))+
 
 -   The middle group does not have any child with production past 100
     for the words and gestures form, making it hard to compare to the
-    other groups, so we collapsed this group with the youngest group and
-    instead will look at delayed vs. non-delayed vocabularies.
+    other groups, so we removed this group.
 
 ## First Administrations - Both Forms
 
--   Including both WS and WG, but only taking the first administration
-    for a child results in 222 words and sentences and 48 words and
-    gestures forms.
+-   Including both WS and WG, but only taking the first administration:
+    -   Removing vocabulary sizes above 225 in the delayed group in
+        order to help matching at a 3:1 ratio.
+-   nProduced is the number of nouns produced.
 
 ```{r}
+mdl_split <- d_netstats %>%
+  filter(group == "mdl",
+         (nProduced <=110 & interview_age >= 60)) %>%
+  mutate(group_two = "delay")
+
 d_netstats_first <- d_netstats %>%
-  mutate(group_two = as.factor(ifelse(group == "yng"|group =="mdl", "no_delay","delay"))) %>%
+  filter(!group == "mdl",nProduced >= 3) %>%
+  mutate(group_two = as.factor(ifelse(group == "yng","no_delay","delay"))) %>%
   filter(origin == "truenet") %>%
   group_by(subjectkey) %>%
-  slice_min(interview_age, n = 1 )
+  slice_min(interview_age, n = 1 ) %>%
+  ungroup() %>%
+  rbind(mdl_split) %>%
+  filter(!(group_two == "delay" & nProduced > 225))
 
 d_netstats_first %>%
   select(subjectkey,group_two,nProduced, interview_age,netBuild) %>%
@@ -214,9 +268,7 @@ d_netstats_first %>%
 ## Matching to the minimally speaking group.
 
 -   Welch two sample t-test revealed no significant difference in
-    productive vocabulary between groups for either the association,
-    $t(80.84) = -0.243, p = 0.809$ or noun-feature,
-    $t(79.14) = -0.255, p = 0.799$ constructed networks.
+    productive vocabulary between groups $t(70.22) = -0.69, p = 0.492$.
 
 ```{r}
 
@@ -239,12 +291,12 @@ map(match_noun_assoc, function(x){
     select(subjectkey,nProduced,group_two) %>%
     unique() %>%
     t.test(nProduced~group_two, data = .)
-})
+})[1]
 
 
 ```
 
--   Keeping both WS and WG forms, we match the no-delay group to the 48
+-   Keeping both WS and WG forms, we match the no-delay group to the 42
     delayed children, allowing the no-delay group to be 3x bigger.
 
 ```{r, echo =  FALSE,fig.width=48, fig.height=12, fig.fullwidth=TRUE}
@@ -260,19 +312,33 @@ map(match_noun_assoc, function(x){
               sd_age = sd(interview_age),
               sd_produced = sd(nProduced)) %>%
     as.data.frame()
-})
+})[1]
+
+match_noun_assoc$nounFeatsTAR %>%
+  left_join(select(d_associations, subjectkey_intAge,nProduced_total = nProduced)) %>%
+  select(subjectkey,interview_age,nProduced_total,group_two) %>%
+    unique() %>%
+    group_by(group_two) %>%
+    summarize(n = n(),
+              mean_age = mean(interview_age),
+              mean_produced = mean(nProduced_total),
+              sd_age = sd(interview_age),
+              sd_produced = sd(nProduced_total)) %>%
+    as.data.frame()
+
+
 
 map(match_noun_assoc, ~
         ggplot(.x, aes(x = nProduced, color = group_two))+
           geom_density(size = 2)+
           theme_bw(base_size = 52)+
-          labs(title = paste0("Matching between groups ", unique(.x$netBuild))))
+          labs(title = paste0("Matching between groups ", unique(.x$netBuild))))[1]
 
 map(match_noun_assoc, ~
         ggplot(.x, aes(x = nProduced, , y = interview_age,color = group_two))+
           geom_point(size = 13)+
           theme_bw(base_size = 52)+
-          labs(title = paste0("Matching between groups ", unique(.x$netBuild))))
+          labs(title = paste0("Matching between groups ", unique(.x$netBuild))))[1]
 
 
 ```
@@ -282,10 +348,12 @@ map(match_noun_assoc, ~
 -   Number of words produced was re-factored to account for third-order
     polynomial trends in the network statistics
 
+-   Nested model comparisons revealed that only linear and cubic
+
 -   Linear models were run regressing
     $network_{statistic} \sim (linear_{nproduced} + quadratic_{nproduced} +cubic_{nproduced})  * group$
 
--   Associations:
+-   Noun Features (TAR filtered):
 
     -   Each model except for the clustering coefficient model revealed
         linear, quadratic, and cubic trends in number of words produced.
@@ -306,11 +374,15 @@ map(match_noun_assoc, ~
         group appears to have a more linear increase in median degree
         than the non-delay group.
 
--   Looking at associative versus noun-feature networks result in
-    conflicting conclusions about the structure of early delayed versus
-    non-delayed vocabularies.
+-   Noun-only Associations:
 
-```{r}
+    -   Group main effect in average indegree and ASPL where the
+        networks in the no-delay group have more incoming connections on
+        average and smaller distances between nodes.
+
+    -   Additional interaction between group and linear trends for ASPL.
+
+```{r, echo = TRUE}
 
 nProduced_poly_all <- match_noun_assoc %>%
   map(~ .x %>%
@@ -328,12 +400,24 @@ matched_df_poly_all <- map2(match_noun_assoc,nProduced_poly_all, function(x,y){
                               filter(origin == "truenet")
 }) 
  
+
 d_splits_all <- matched_df_poly_all %>%
   map(~ split(.x,.x$metric))
 
-x <- map(d_splits_all, function(x){
+map(d_splits_all, function(x){
+  map(x, function(y){
+     m1 <- lm(z~linear*group_two, data = y)
+     m2 <- lm(z~(linear+quadratic)*group_two, data = y)
+     m3 <- lm(z~(linear+quadratic+cubic)*group_two, data = y )
+  return(anova(m1,m2,m3))
+  })
+})
+
+
+
+x<- map(d_splits_all, function(x){
     map(x, function(d){ 
-          lm(z ~ (linear+quadratic+cubic)*group_two, data = d)
+          lm(z ~ (linear+quadratic)*group_two, data = d)
       })
 })
 
@@ -405,6 +489,7 @@ d_WG %>%
 -   Production matching
     -   Associations: $t(59.58) = -0.844, p = 0.402$
     -   Noun features: $t(56.44) = -0.831, p = 0.402$
+    -   Noun-only Associations: $t(56.45) = -0.842, p = 0.403$
 
 ```{r, echo =  FALSE,fig.fullwidth=TRUE,fig.width=24, fig.height=12}
 
@@ -486,6 +571,13 @@ map(matched_df, ~
     -   There is an interaction of group and linear production trends
         for the clustering coefficient and ASPL, where again the delay
         group appears more linear.
+
+-   Noun-only Associations:
+
+    -   No group effects.
+
+    -   Only interaction is in clustering coefficient for the quadratic
+        trend and group.
 
 ```{r}
 nProduced_poly <- matched_df %>%
@@ -577,3 +669,20 @@ map(matched_df_poly, ~
     -   There is an interaction of group and linear production trends
         for the clustering coefficient and ASPL, where again the delay
         group appears more linear.
+
+## Noun-only Associations
+
+-   Using both words and gestures and words and sentences forms in the
+    models allows for 144 no-delay and 48 delayed children to be
+    included.
+
+    -   Group main effect in average indegree and ASPL where the
+        networks in the no-delay group have more incoming connections on
+        average and smaller distances between nodes.
+
+    -   Additional interaction between group and linear trends for ASPL.
+
+-   Using just words and gestures allows 64 non-delay and 32 delayed
+    children to be included.
+
+    -   All group effects get washed out with the smaller sample.

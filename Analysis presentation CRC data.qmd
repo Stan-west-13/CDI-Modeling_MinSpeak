@@ -351,12 +351,12 @@ map(d_splits_all, function(x){
   })
 })
 
-
+wt <- ifelse(d_splits_all$assoc$`Median Indegree`$group_two == 'old',3,1)
 
 x<- map(d_splits_all, function(x){
     map(x, function(d){ 
       d$group_two <- relevel(d$group_two, ref = "no_delay")
-          lm(z ~ (linear+quadratic)*group_two, data = d,)
+          lm(z ~ (linear+quadratic)*group_two, data = d,weights = wt)
       })
 })
 
