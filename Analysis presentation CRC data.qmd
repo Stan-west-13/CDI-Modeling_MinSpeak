@@ -308,17 +308,38 @@ map(match_noun_assoc, ~
 -   Linear models were run regressing
     $network_{statistic} \sim (linear_{nproduced} + quadratic_{nproduced})  * group$
 
--   Noun Features (TAR filtered):
+-   Noun Features (TAR filtered; interpreted by Chris Cox):
 
-    -   No group differences or interactions
+    -   There is a negative quadratic trend for indegree, and no linear
+        trend, for both groups. There is a main effect of group whereby
+        indegree is higher on average for the delayed group.
 
--   Noun-only Associations:
+    -   There are no trends, linear or quadradic, for the clustering
+        coefficient, but there is a main effect of group whereby the
+        delayed group tends to have higher clustering coefficients on
+        average.
 
-    -   Group main effect in median indegree and ASPL where the networks
-        in the no-delay group have more incoming connections on average
-        and smaller distances between nodes.
+    -   There is a negative linear trend (and no quadradic trend) of
+        ASPL for both groups, and this trend does not differ between
+        groups, nor is there a difference of means.
 
-    -   Additional interaction between group and linear trends for ASPL.
+-   Noun-only Associations (interpreted by Chris Cox):
+
+    -   The groups do not differ on indegree; there is a negative linear
+        and a positive quadradic trend, but neither differ between
+        groups, nor is there a difference in the group means.
+
+    -   Both groups have negative linear and quadradic trends in their
+        clustering coefficients as vocabularies grow, but the "delayed"
+        group has a steeper negative linear trend than the "typical"
+        group. However, the group means do not differ.
+
+    -   Both groups have a negative linear trend of ASPL (augmented by a
+        positive quadradic trend), but there is a main effect such that
+        paths are longer in the delayed group on average. There is
+        almost an interaction on the linear trend, which would have
+        suggested that ASPL declines more slowly for the delayed group,
+        but this interaction is not actually significant (p = .0596).
 
 ```{r, echo = TRUE}
 
