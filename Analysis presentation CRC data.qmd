@@ -351,7 +351,7 @@ map(d_splits_all, function(x){
   })
 })
 
-wt <- ifelse(d_splits_all$assoc$`Median Indegree`$group_two == 'old',3,1)
+wt <- ifelse(d_splits_all$assoc$`Median Indegree`$group_two == 'delay',3,1)
 
 x<- map(d_splits_all, function(x){
     map(x, function(d){ 
