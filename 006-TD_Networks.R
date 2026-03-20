@@ -29,7 +29,12 @@ vocab_admin_data <- vocab_data %>%
   left_join(admin_data, by = "data_id") %>%
   mutate(num_item_id = as.numeric(str_remove(item_id, "item_"),.after = "item_id")) %>%
   left_join(get_item_data()) %>%
-  filter(num_item_id <= 680)
+  filter(num_item_id <= 680) %>%
+  left_join(cdi) %>%
+  left_join(assign_percentile_produces(.,quantiles))
+
+assign_percentile_produces(vocab_admin_data, quantiles)
+
 
 noun_feats <- readr::read_csv("data/MBCDI_concsFeats_2022-07-14.csv")
 cdi_items <- readr::read_rds("data/cdi-item-data (MinSpeak).rds") |> as_tibble()
