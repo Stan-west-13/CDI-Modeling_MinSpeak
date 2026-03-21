@@ -1,43 +1,95 @@
-devtools::install_github("langcog/wordbankr")
+#devtools::install_github("langcog/wordbankr")
 library(wordbankr)
 library(dplyr)
 library(stringr)
 library(readr)
+library(ggplot2)
 library(purrr)
+library(future)
+library(furrr)
 library(tidyr)
+library(MatchIt)
 library(igraph)
 source("R/assocNetwork.R")
 source("R/assign_percentiles.R")
 # Load vocabulary and association data ----
 assoc_child <- readr::read_rds("data/associations-child.rds") |> as_tibble()
-admin_data <- get_administration_data("English (American)", "WS") %>%
-  group_by(child_id,age)
-quantiles <- fit_vocab_quantiles(vocab_data = admin_data,
-                                 measure = "production",
-                                 quantiles = seq.int(0.1,0.9,0.05)) %>%
-  pivot_wider(names_from = "quantile",
-              values_from = `"production"`)
+noun_feats <- readr::read_csv("data/MBCDI_concsFeats_2022-07-14.csv")
 
-admin_data
+## CDI info
+cdi <- read_rds("data/cdi-metadata.rds")
+cdi_items <- readr::read_rds("data/cdi-item-data (MinSpeak).rds") |> as_tibble()
 
+# ## Retrieve WS English admin and vocab data
+# admin_data <- get_administration_data("English (American)", "WS",include_demographic_info = T) 
+# vocab_data <- get_instrument_data("English (American)","WS")
+# 
+# ## Compute quantiles
+# quantiles <- fit_vocab_quantiles(vocab_data = admin_data,
+#                                  measure = "production",
+#                                  quantiles = seq.int(0.1,0.9,0.05)) %>%
+#   pivot_wider(names_from = "quantile",
+#               values_from = `"production"`)
+# 
+# 
+# ## Join admin and vocab data, select TD at 15th percentile or more
+# vocab_admin_data <- vocab_data %>%
+#   left_join(admin_data, by = "data_id") %>% ## join admin and vocab data
+#   mutate(num_item_id = as.numeric(str_remove(item_id, "item_"),.after = "item_id")) %>% ## create num_item_id
+#   left_join(get_item_data()) %>% ## retrieve item data from wordbank
+#   filter(num_item_id <= 680) %>% ## only keep up to 680
+#   left_join(cdi) %>% ## join in CDI
+#   left_join(assign_percentile_produces(.,quantiles)) %>% ## assign kids to LT or TD based on 15 percentile cutoff
+#   filter(group == "TD") %>% ## Only keep TD kids
+#   group_by(data_id) %>% ## Group by participant
+#   mutate(nproduced = sum(produces), ## compute number of word produced
+#          group_super = group,
+#          n_nouns = sum(produces[lexical_class == "nouns"]), ## compute number of nouns
+#          data_id = as.factor(data_id)) %>% 
+#   select(subjectkey = data_id,sex,
+#          item_id, num_item_id,produces,
+#          nproduced,n_nouns, percentile,
+#          group_super, lemma, lexical_class,
+#          form, child_id, interview_age = age,
+#          interview_date = date_of_test,
+#          item_definition,CDI_Metadata_compatible,cue_CoxHae) 
+# saveRDS(vocab_admin_data, file = "data/td_vocab-admins-2026-03-21.rds")
 
-vocab_data <- get_instrument_data("English (American)","WS")
-
+vocab_admin_data <- read_rds("data/td_vocab-admins-2026-03-21.rds")
 load("data/matched_minspeak.Rdata")
 
-vocab_admin_data <- vocab_data %>%
-  left_join(admin_data, by = "data_id") %>%
-  mutate(num_item_id = as.numeric(str_remove(item_id, "item_"),.after = "item_id")) %>%
-  left_join(get_item_data()) %>%
-  filter(num_item_id <= 680) %>%
-  left_join(cdi) %>%
-  left_join(assign_percentile_produces(.,quantiles))
+## Match TD sample to ASD
+ASD_samp <- matched_df_poly_all$assoc %>%
+  select(subjectkey,nproduced,interview_age,form) %>%
+  unique() %>%
+  mutate(group_super = "ASD")
 
-assign_percentile_produces(vocab_admin_data, quantiles)
+## Matching dataframe
+match_df <- rbind(ASD_samp, select(vocab_admin_data,
+                                   subjectkey, 
+                                   group_super,
+                                   nproduced = n_nouns,
+                                   interview_age,
+                                   form)) %>%
+  mutate(group_super = factor(group_super, levels = c("TD", "ASD"))) %>%
+  unique()
+## Matching model - 3:1 ratio
+match_mod <- matchit(group_super~nproduced, 
+                     data = match_df, 
+                     method = "optimal",
+                     distance = "glm",
+                     ratio = 3)
+summary(match_mod)
+plot(match_mod,type = "density")
+
+d_matched <- match.data(match_mod) %>%
+  filter(group_super == "TD") %>%
+  mutate(subjectkey = as.factor(subjectkey)) %>%
+  left_join(vocab_admin_data %>% mutate(nproduced_total = nproduced) %>%select(-nproduced), by = c("subjectkey","interview_age","form","group_super","nproduced" = "n_nouns")) %>%
+  filter(lexical_class == "nouns", produces)
+  
 
 
-noun_feats <- readr::read_csv("data/MBCDI_concsFeats_2022-07-14.csv")
-cdi_items <- readr::read_rds("data/cdi-item-data (MinSpeak).rds") |> as_tibble()
 
 #################################################################################
 ## Create cdi_items "cue" column to match assoc_child "CUE" column ----
@@ -179,6 +231,26 @@ g_assoc_wg_shared <- vid_assoc_ws_shared |>
 
 
 
+# Compose vocab_data_shared ----
+vocab_data_first_record <- d_matched |>
+  select(subjectkey, form, sex, interview_age, interview_date, cue = cue_CoxHae, produces) |> 
+  filter(cue %in% names(V(g_feat_ws)), produces) |>
+  select(-produces) |>
+  group_by(subjectkey) |>
+  filter(interview_age == min(interview_age)) |>
+  ungroup()
+vid_feat_forms <- bind_rows(WS = vid_feat_ws, WG = vid_feat_wg, .id = "form")
+
+vocab_data_first_record_shared <- vocab_data_first_record |>
+  add_count(subjectkey, form, sex, interview_age, interview_date, name = "nproduced") |>
+  left_join(vid_feat_forms, by = join_by(form, cue == cue)) |>
+  nest(vocab = c(vid, cue, on_WG))
+
+vocab_data_first_record_shared |>
+  pull(nproduced) |>
+  hist()
+
+
 
 # RAN simulations ----
 g_feat <- list(WS = g_feat_ws, WG = g_feat_wg)
@@ -199,9 +271,11 @@ vocab_stats <- function(vids, g_feat, g_assoc_shared) {
   )
 }
 
+## Set up future mapping
+plan(multisession, workers = parallel::detectCores() - 1)
 
 vocab_data_first_record_shared <- vocab_data_first_record_shared |>
-  mutate(netstats = map2(vocab, form, \(x, form) {
+  mutate(netstats = future_map2(vocab, form, \(x, form) {
     g_feat_vocab <- induced_subgraph(g_feat[[form]], vids = x$vid)
     g_assoc_vocab <- induced_subgraph(g_assoc_shared[[form]], vids = x$vid)
     ran = replicate(1000, vocab_stats(x$vid, g_feat[[form]], g_assoc_shared[[form]]), simplify = TRUE)
@@ -230,13 +304,13 @@ vocab_data_first_record_shared <- vocab_data_first_record_shared |>
   }, .progress = TRUE))
 
 
-saveRDS(vocab_data_first_record_shared, "vocab-netstats-TAR4-2026_02_13c.rds")
+saveRDS(vocab_data_first_record_shared, "vocab-netstats-TD-TAR4-2026_03_21c.rds")
 
 
 
 
 # Plotting ----
-d <- readRDS("vocab-netstats-TAR4-2026_02_13c.rds") |>
+d <- readRDS("vocab-netstats-TAR4-2026_03_21c.rds") |>
   filter(nproduced >= 3) |>
   select(-vocab) |>
   unnest(netstats) |>
