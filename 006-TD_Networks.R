@@ -1,4 +1,4 @@
-#devtools::install_github("langcog/wordbankr")
+# #devtools::install_github("langcog/wordbankr")
 library(wordbankr)
 library(dplyr)
 library(stringr)
@@ -12,7 +12,7 @@ library(MatchIt)
 library(igraph)
 source("R/assocNetwork.R")
 source("R/assign_percentiles.R")
-# Load vocabulary and association data ----
+# # Load vocabulary and association data ----
 assoc_child <- readr::read_rds("data/associations-child.rds") |> as_tibble()
 noun_feats <- readr::read_csv("data/MBCDI_concsFeats_2022-07-14.csv")
 
@@ -21,7 +21,7 @@ cdi <- read_rds("data/cdi-metadata.rds")
 cdi_items <- readr::read_rds("data/cdi-item-data (MinSpeak).rds") |> as_tibble()
 
 # ## Retrieve WS English admin and vocab data
-# admin_data <- get_administration_data("English (American)", "WS",include_demographic_info = T) 
+# admin_data <- get_administration_data("English (American)", "WS",include_demographic_info = T)
 # vocab_data <- get_instrument_data("English (American)","WS")
 # 
 # ## Compute quantiles
@@ -45,52 +45,52 @@ cdi_items <- readr::read_rds("data/cdi-item-data (MinSpeak).rds") |> as_tibble()
 #   mutate(nproduced = sum(produces), ## compute number of word produced
 #          group_super = group,
 #          n_nouns = sum(produces[lexical_class == "nouns"]), ## compute number of nouns
-#          data_id = as.factor(data_id)) %>% 
+#          data_id = as.factor(data_id)) %>%
 #   select(subjectkey = data_id,sex,
 #          item_id, num_item_id,produces,
 #          nproduced,n_nouns, percentile,
 #          group_super, lemma, lexical_class,
 #          form, child_id, interview_age = age,
 #          interview_date = date_of_test,
-#          item_definition,CDI_Metadata_compatible,cue_CoxHae) 
+#          item_definition,CDI_Metadata_compatible,cue_CoxHae)
 # saveRDS(vocab_admin_data, file = "data/td_vocab-admins-2026-03-21.rds")
+# 
+# vocab_admin_data <- read_rds("data/td_vocab-admins-2026-03-21.rds")
+# load("data/matched_minspeak.Rdata")
+# 
+# ## Match TD sample to ASD
+# ASD_samp <- match_noun_assoc$assoc %>%
+#   select(subjectkey,nproduced,interview_age,form) %>%
+#   unique() %>%
+#   mutate(group_super = "ASD")
+# 
+# ## Matching dataframe
+# match_df <- rbind(ASD_samp, select(vocab_admin_data,
+#                                    subjectkey,
+#                                    group_super,
+#                                    nproduced = n_nouns,
+#                                    interview_age,
+#                                    form)) %>%
+#   mutate(group_super = factor(group_super, levels = c("TD", "ASD"))) %>%
+#   unique()
+# ## Matching model - 3:1 ratio
+# match_mod <- matchit(group_super~nproduced,
+#                      data = match_df,
+#                      method = "optimal",
+#                      distance = "glm",
+#                      ratio = 3)
+# summary(match_mod)
+# plot(match_mod,type = "density")
+# 
+# d_matched <- match.data(match_mod) %>%
+#   filter(group_super == "TD") %>%
+#   mutate(subjectkey = as.factor(subjectkey)) %>%
+#   left_join(vocab_admin_data %>% mutate(nproduced_total = nproduced) %>%select(-nproduced), by = c("subjectkey","interview_age","form","group_super","nproduced" = "n_nouns")) %>%
+#   filter(lexical_class == "nouns", produces)
+# 
+# saveRDS(d_matched, file = "data/matched-td_2026-03-21.rds")
 
-vocab_admin_data <- read_rds("data/td_vocab-admins-2026-03-21.rds")
-load("data/matched_minspeak.Rdata")
-
-## Match TD sample to ASD
-ASD_samp <- matched_df_poly_all$assoc %>%
-  select(subjectkey,nproduced,interview_age,form) %>%
-  unique() %>%
-  mutate(group_super = "ASD")
-
-## Matching dataframe
-match_df <- rbind(ASD_samp, select(vocab_admin_data,
-                                   subjectkey, 
-                                   group_super,
-                                   nproduced = n_nouns,
-                                   interview_age,
-                                   form)) %>%
-  mutate(group_super = factor(group_super, levels = c("TD", "ASD"))) %>%
-  unique()
-## Matching model - 3:1 ratio
-match_mod <- matchit(group_super~nproduced, 
-                     data = match_df, 
-                     method = "optimal",
-                     distance = "glm",
-                     ratio = 3)
-summary(match_mod)
-plot(match_mod,type = "density")
-
-d_matched <- match.data(match_mod) %>%
-  filter(group_super == "TD") %>%
-  mutate(subjectkey = as.factor(subjectkey)) %>%
-  left_join(vocab_admin_data %>% mutate(nproduced_total = nproduced) %>%select(-nproduced), by = c("subjectkey","interview_age","form","group_super","nproduced" = "n_nouns")) %>%
-  filter(lexical_class == "nouns", produces)
-  
-
-
-
+d_matched <- read_rds("data/matched-td_2026-03-21.rds")
 #################################################################################
 ## Create cdi_items "cue" column to match assoc_child "CUE" column ----
 cdi_items <- cdi_items |>
@@ -310,7 +310,7 @@ saveRDS(vocab_data_first_record_shared, "vocab-netstats-TD-TAR4-2026_03_21c.rds"
 
 
 # Plotting ----
-d <- readRDS("vocab-netstats-TAR4-2026_03_21c.rds") |>
+d <- readRDS("vocab-netstats-TD-TAR4-2026_03_21c.rds") |>
   filter(nproduced >= 3) |>
   select(-vocab) |>
   unnest(netstats) |>
@@ -320,7 +320,7 @@ d <- readRDS("vocab-netstats-TAR4-2026_03_21c.rds") |>
     vocab_RANz = (value[type == "vocab"] - value[type == "randomM"]) / value[type == "randomS"])
 
 
-write_rds(d, "data/formatted_metadata_crc.rds")
+write_rds(d, "data/formatted_metadata_TD_crc.rds")
 
 d |>
   mutate(
@@ -335,7 +335,7 @@ d |>
   facet_grid(netstat ~ network, scale = "free_y") +
   theme_classic(base_size = 12)
 
-ggsave("netstats-featTAR4-byForm.png", width = 6.5, height = 5, units = "in", dpi = 300)
+ggsave("Figures/netstats-featTAR4-byForm.png", width = 6.5, height = 5, units = "in", dpi = 300)
 
 d |>
   pivot_wider(names_from = type, values_from = value) |>
@@ -354,7 +354,7 @@ d |>
   theme_classic(base_size = 12) +
   theme(legend.key.spacing.y = unit(1, "line"))
 
-ggsave("netstats-RANz-featTAR4-byForm.png", width = 6.5, height = 3.25, units = "in", dpi = 300)
+ggsave("Figures/netstats-RANz-featTAR4-byForm.png", width = 6.5, height = 3.25, units = "in", dpi = 300)
 
 d |>
   filter(nproduced>20) |>
@@ -374,4 +374,4 @@ d |>
   theme_classic(base_size = 12) +
   theme(legend.key.spacing.y = unit(1, "line"))
 
-ggsave("netstats-RANz-featTAR4-nouns20-byForm.png", width = 6.5, height = 3.25, units = "in", dpi = 300)
+ggsave("Figures/netstats-RANz-featTAR4-nouns20-byForm.png", width = 6.5, height = 3.25, units = "in", dpi = 300)
