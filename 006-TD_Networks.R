@@ -1,4 +1,4 @@
-# #devtools::install_github("langcog/wordbankr")
+devtools::install_github("langcog/wordbankr")
 library(wordbankr)
 library(dplyr)
 library(stringr)
@@ -21,25 +21,25 @@ cdi <- read_rds("data/cdi-metadata.rds")
 cdi_items <- readr::read_rds("data/cdi-item-data (MinSpeak).rds") |> as_tibble()
 
 # ## Retrieve WS English admin and vocab data
-# admin_data <- get_administration_data("English (American)", "WS",include_demographic_info = T)
-# vocab_data <- get_instrument_data("English (American)","WS")
+# admin_data_WS <- get_administration_data("English (American)", "WS",include_demographic_info = T)
+# vocab_data_WS <- get_instrument_data("English (American)","WS")
 # 
-# ## Compute quantiles
-# quantiles <- fit_vocab_quantiles(vocab_data = admin_data,
+# ## Compute quantiles WS
+# quantiles_WS <- fit_vocab_quantiles(vocab_data = admin_data_WS,
 #                                  measure = "production",
 #                                  quantiles = seq.int(0.1,0.9,0.05)) %>%
 #   pivot_wider(names_from = "quantile",
 #               values_from = `"production"`)
 # 
 # 
-# ## Join admin and vocab data, select TD at 15th percentile or more
-# vocab_admin_data <- vocab_data %>%
-#   left_join(admin_data, by = "data_id") %>% ## join admin and vocab data
+# ## Join admin and vocab data, select TD at 15th percentile or more WS
+# vocab_admin_data_WS <- vocab_data_WS %>%
+#   left_join(admin_data_WS, by = "data_id") %>% ## join admin and vocab data
 #   mutate(num_item_id = as.numeric(str_remove(item_id, "item_"),.after = "item_id")) %>% ## create num_item_id
 #   left_join(get_item_data()) %>% ## retrieve item data from wordbank
 #   filter(num_item_id <= 680) %>% ## only keep up to 680
 #   left_join(cdi) %>% ## join in CDI
-#   left_join(assign_percentile_produces(.,quantiles)) %>% ## assign kids to LT or TD based on 15 percentile cutoff
+#   left_join(assign_percentile_produces(.,quantiles_WS)) %>% ## assign kids to LT or TD based on 15 percentile cutoff
 #   filter(group == "TD") %>% ## Only keep TD kids
 #   group_by(data_id) %>% ## Group by participant
 #   mutate(nproduced = sum(produces), ## compute number of word produced
@@ -53,42 +53,80 @@ cdi_items <- readr::read_rds("data/cdi-item-data (MinSpeak).rds") |> as_tibble()
 #          form, child_id, interview_age = age,
 #          interview_date = date_of_test,
 #          item_definition,CDI_Metadata_compatible,cue_CoxHae)
-# saveRDS(vocab_admin_data, file = "data/td_vocab-admins-2026-03-21.rds")
+# saveRDS(vocab_admin_data_WS, file = "data/td_vocab-WS-admins-2026-03-23.rds")
 # 
-# vocab_admin_data <- read_rds("data/td_vocab-admins-2026-03-21.rds")
-# load("data/matched_minspeak.Rdata")
+# ## Retrieve WG English admin and vocab data
+# admin_data_WG <- get_administration_data("English (American)", "WG",include_demographic_info = T)
+# vocab_data_WG <- get_instrument_data("English (American)","WG")
 # 
-# ## Match TD sample to ASD
-# ASD_samp <- match_noun_assoc$assoc %>%
-#   select(subjectkey,nproduced,interview_age,form) %>%
-#   unique() %>%
-#   mutate(group_super = "ASD")
+# ## Compute quantiles WG
+# quantiles_WG <- fit_vocab_quantiles(vocab_data = admin_data_WG,
+#                                     measure = "production",
+#                                     quantiles = seq.int(0.1,0.9,0.05)) %>%
+#   pivot_wider(names_from = "quantile",
+#               values_from = `"production"`)
 # 
-# ## Matching dataframe
-# match_df <- rbind(ASD_samp, select(vocab_admin_data,
-#                                    subjectkey,
-#                                    group_super,
-#                                    nproduced = n_nouns,
-#                                    interview_age,
-#                                    form)) %>%
-#   mutate(group_super = factor(group_super, levels = c("TD", "ASD"))) %>%
-#   unique()
-# ## Matching model - 3:1 ratio
-# match_mod <- matchit(group_super~nproduced,
-#                      data = match_df,
-#                      method = "optimal",
-#                      distance = "glm",
-#                      ratio = 3)
-# summary(match_mod)
-# plot(match_mod,type = "density")
 # 
-# d_matched <- match.data(match_mod) %>%
-#   filter(group_super == "TD") %>%
-#   mutate(subjectkey = as.factor(subjectkey)) %>%
-#   left_join(vocab_admin_data %>% mutate(nproduced_total = nproduced) %>%select(-nproduced), by = c("subjectkey","interview_age","form","group_super","nproduced" = "n_nouns")) %>%
-#   filter(lexical_class == "nouns", produces)
-# 
-# saveRDS(d_matched, file = "data/matched-td_2026-03-21.rds")
+# ## Join admin and vocab data, select TD at 15th percentile or more WG
+# vocab_admin_data_WG <- vocab_data_WG %>%
+#   left_join(admin_data_WG, by = "data_id") %>% ## join admin and vocab data
+#   mutate(num_item_id = as.numeric(str_remove(item_id, "item_"),.after = "item_id")) %>% ## create num_item_id
+#   left_join(get_item_data()) %>% ## retrieve item data from wordbank
+#   filter(num_item_id <= 680) %>% ## only keep up to 680
+#   left_join(cdi) %>% ## join in CDI
+#   left_join(assign_percentile_produces(.,quantiles_WG)) %>% ## assign kids to LT or TD based on 15 percentile cutoff
+#   filter(group == "TD") %>% ## Only keep TD kids
+#   group_by(data_id) %>% ## Group by participant
+#   mutate(nproduced = sum(produces), ## compute number of word produced
+#          group_super = group,
+#          n_nouns = sum(produces[lexical_class == "nouns"]), ## compute number of nouns
+#          data_id = as.factor(data_id)) %>%
+#   select(subjectkey = data_id,sex,
+#          item_id, num_item_id,produces,
+#          nproduced,n_nouns, percentile,
+#          group_super, lemma, lexical_class,
+#          form, child_id, interview_age = age,
+#          interview_date = date_of_test,
+#          item_definition,CDI_Metadata_compatible,cue_CoxHae)
+# saveRDS(vocab_admin_data_WG, file = "data/td_vocab-WG-admins-2026-03-23.rds")
+
+
+vocab_admin_data_WS <- read_rds("data/td_vocab-WS-admins-2026-03-23.rds")
+vocab_admin_data_WG <- read_rds("data/td_vocab-WG-admins-2026-03-23.rds")
+
+load("data/matched_minspeak.Rdata")
+
+## Match TD sample to ASD
+ASD_samp <- match_noun_assoc$assoc %>%
+  select(subjectkey,nproduced,interview_age,form) %>%
+  unique() %>%
+  mutate(group_super = "ASD")
+
+## Matching dataframe
+match_df <- rbind(ASD_samp, select(vocab_admin_data,
+                                   subjectkey,
+                                   group_super,
+                                   nproduced = n_nouns,
+                                   interview_age,
+                                   form)) %>%
+  mutate(group_super = factor(group_super, levels = c("TD", "ASD"))) %>%
+  unique()
+## Matching model - 3:1 ratio
+match_mod <- matchit(group_super~nproduced,
+                     data = match_df,
+                     method = "optimal",
+                     distance = "glm",
+                     ratio = 3)
+summary(match_mod)
+plot(match_mod,type = "density")
+
+d_matched <- match.data(match_mod) %>%
+  filter(group_super == "TD") %>%
+  mutate(subjectkey = as.factor(subjectkey)) %>%
+  left_join(vocab_admin_data %>% mutate(nproduced_total = nproduced) %>%select(-nproduced), by = c("subjectkey","interview_age","form","group_super","nproduced" = "n_nouns")) %>%
+  filter(lexical_class == "nouns", produces)
+
+saveRDS(d_matched, file = "data/matched-td_2026-03-21.rds")
 
 d_matched <- read_rds("data/matched-td_2026-03-21.rds")
 #################################################################################
