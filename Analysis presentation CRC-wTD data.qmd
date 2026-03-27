@@ -489,7 +489,7 @@ map(matched_df_poly_all, ~ ggplot(.x %>%
   theme_bw(base_size = 24) +
   geom_smooth(method = "lm",
               formula = y ~ poly(x,3))+
- # facet_grid(~metric_plot)+
+  facet_grid(~metric_plot)+
   labs(title = "Network Statistic Trajectory by Group",
        subtitle = paste("Network Construction:",unique(.x$netBuild))))
 
