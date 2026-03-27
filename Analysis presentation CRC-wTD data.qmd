@@ -2,7 +2,7 @@
 title: "Standardized Network Analysis-TD Comparison"
 author: "Stanley West"
 format: 
-  revealjs:
+  revealjs: 
     embed-resources: true
     self-contained-math: true
     scrollable: true
@@ -48,9 +48,12 @@ library(tidyverse)
 library(ggplot2)
 library(purrr)
 library(MatchIt)
+library(rstatix)
 library(ggh4x)
 library(plotly)
+library(readr)
 library(ggraph)
+library(tidyr)
 
 d_netstats <- read_rds("data/formatted_metadata_crc.rds") %>%
   mutate(nProduced = nproduced,
@@ -60,6 +63,9 @@ d_netstats <- read_rds("data/formatted_metadata_crc.rds") %>%
          z = vocab_RANz) 
 
 matched_pps <- read_rds("data/matched_groups_single_timepoint.rds")
+
+
+d_matched_td <- read_rds("data/matched-td_2026-03-21.rds")
 
 load("data/graph_full_nounNet.Rdata")
 load("data/child_oriented_graph.Rdata")
@@ -148,47 +154,73 @@ ggsave("Figures/network_stats_comparison.png")
 <!-- ## Plotting unmatched statistic distributions over production {.smaller .scrollable .hidden} -->
 
 <!-- -   Distributions across the unmatched samples look similar, especially -->
+
 <!--     at smaller vocabularies. -->
+
 <!-- -   However, this is still collapsed across forms. -->
 
 <!-- ```{r} -->
 
 <!-- ggplot(d_netstats %>%  -->
+
 <!--          filter(form == "WS"), aes(x = nProduced, y = z, color = group))+ -->
+
 <!--   facet_grid2(netBuild~metric_plot,scales = "free",independent = "all")+ -->
+
 <!--   geom_smooth(method = "lm", -->
+
 <!--               formula = y~poly(x,3))+ -->
+
 <!--   theme_bw(base_size = 24)+ -->
+
 <!--   labs(title = "Unmatched Statistic Distrubution Over Production - Words & Sentences", -->
+
 <!--        x = "Productive Vocabulary", -->
+
 <!--        y = "Z-scored Network Statistic") -->
 
 <!-- ggplot(d_netstats %>%  -->
+
 <!--          filter(form == "WG"), aes(x = nProduced, y = z, color = group))+ -->
+
 <!--   geom_point() + -->
+
 <!--   facet_grid2(netBuild~metric_plot,scales = "free",independent = "all")+ -->
+
 <!--   geom_smooth(method = "lm", -->
+
 <!--               formula = y~poly(x,3))+ -->
+
 <!--   theme_bw(base_size = 24)+ -->
+
 <!--   labs(title = "Unmatched Statistic Distrubution Over Production - Words & Gestures", -->
+
 <!--        x = "Productive Vocabulary", -->
+
 <!--        y = "Z-scored Network Statistic") -->
 
-
-
 <!-- ggplot(d_netstats , aes(x = group, y = z, color = group))+ -->
+
 <!--   geom_violin() + -->
+
 <!--   geom_boxplot(width = 0.2, fill = "lightgrey")+ -->
+
 <!--   facet_grid2(netBuild~metric_plot,scales = "free",independent = "all")+ -->
+
 <!--   theme_bw(base_size = 24)+ -->
+
 <!--   labs(title = "Unmatched Statistic Boxplots Over Group ", -->
+
 <!--        x = "Group", -->
+
 <!--        y = "Z-scored Network Statistic") -->
 
 <!-- ``` -->
 
 <!-- -   The middle group does not have any child with production past 100 -->
+
 <!--     for the words and gestures form, making it hard to compare to the -->
+
 <!--     other groups, so we removed this group. -->
 
 ## First Administrations - Both Forms
@@ -234,9 +266,36 @@ d_netstats_first$group_two <- relevel(d_netstats_first$group_two, ref = "no_dela
 
 ```
 
+## Typically Developing Total Word Production
+
+```{r,message=FALSE, echo =  FALSE, fig.fullwidth=TRUE}
+d_matched_td%>%
+  select(subjectkey, nproduced_total,nouns_produced = nproduced, interview_age) %>%
+    pivot_longer(cols = c("nouns_produced", "nproduced_total"),
+                 names_to = "measure",
+                 values_to = "nproduced")%>%
+  group_by(measure) %>%
+  get_summary_stats(nproduced, type = c('full')) %>%
+  as.data.frame()
+
+ggplot(d_matched_td%>%
+  select(subjectkey, nproduced_total,nouns_produced = nproduced, interview_age) %>%
+    pivot_longer(cols = c("nouns_produced", "nproduced_total"),
+                 names_to = "measure",
+                 values_to = "nproduced"), aes(x = nproduced, y = interview_age))+
+  geom_point(size = 6)+
+  facet_wrap(~measure,scales = "free_x") +
+  theme_bw(base_size = 52)+
+  geom_smooth(method = "lm")
+```
+
+
+
+
 ## Matching between delay, no delay, and TD groups.
 
--   3-way ANOVA revealed no differences in number of nouns produced between the TD and two ASD groups $F(2,485) = 0.1, p = 0.905$.
+-   3-way ANOVA revealed no differences in number of nouns produced
+    between the TD and two ASD groups $F(2,485) = 0.1, p = 0.905$.
 
 ```{r}
 
@@ -320,25 +379,58 @@ map(combined_list, ~
 
 -   Linear models were run regressing
     $network_{statistic} \sim (linear_{nproduced} + quadratic_{nproduced})  * group$
-    
--   The reference group is set to the typically developing group. 
+
+-   The reference group is set to the typically developing group.
 
 -   Noun Features (TAR filtered; interpreted by Chris Cox):
 
+    -   Median indegree: There is a significant linear trend in median
+        indegree, as well as significant mean differences between the TD
+        and both the delay and no-delay groups. A signficant negative
+        interaction between group and linear trends indicate that the TD
+        group is increasing faster than both delay and no-delay groups.
 
-    -  Median indegree: There is a significant linear trend in median indegree, as well as significant mean differences between the TD and both the delay and no-delay groups. A signficant negative interaction between group and linear trends indicate that the TD group is increasing faster than both delay and no-delay groups. 
+    -   Clustering Coefficient: There are no trends, linear or
+        quadratic, for the clustering coefficient, but there is a main
+        effect of group whereby the delayed group tends to have higher
+        clustering coefficients on average.
 
-    - Clustering Coefficient:  There are no trends, linear or quadratic, for the clustering coefficient, but there is a main effect of group whereby the delayed group tends to have higher clustering coefficients on average.
-
-    -  ASPL: There is a negative linear trend (and no quadratic trend), as well as mean differences between both ASD groups (delay and no-delay) and the TD group. There is also a significant linear by group interaction for both groups indicating that the TD group is achieving low path lengths faster. Finally, there is a significant quadratic by group interaction for the no delay group, indicated by a late increase in path length around 200 nouns.
+    -   ASPL: There is a negative linear trend (and no quadratic trend),
+        as well as mean differences between both ASD groups (delay and
+        no-delay) and the TD group. There is also a significant linear
+        by group interaction for both groups indicating that the TD
+        group is achieving low path lengths faster. Finally, there is a
+        significant quadratic by group interaction for the no delay
+        group, indicated by a late increase in path length around 200
+        nouns.
 
 -   Noun-only Associations (interpreted by Chris Cox):
 
-    -  Median Indegree: There is a positive linear and a negative quadradic trend, as well as a significant negaitive group difference between both ASD groups and the TD group. There are negative linear and positive quadratic by no-delay group interactions, captured by rapid decreases in indegree early on for the no-delay group, whereas the TD group has steady increases over noun acquisition.
+    -   Median Indegree: There is a positive linear and a negative
+        quadradic trend, as well as a significant negaitive group
+        difference between both ASD groups and the TD group. There are
+        negative linear and positive quadratic by no-delay group
+        interactions, captured by rapid decreases in indegree early on
+        for the no-delay group, whereas the TD group has steady
+        increases over noun acquisition.
 
-    - Clustering Coefficient: There are positive linear and negative quadratic trends as well as significant group differences between the TD and both ASD groups. There are also significant negative linear and positive quadratic by no-delay group interactions, suggesting steeper decrease in clustering for the no-delay group, with steady increases that plateau in the TD group. There was finally a significant negaitve linear by delay group interaction, again with this group decreasing faster than the TD group.
+    -   Clustering Coefficient: There are positive linear and negative
+        quadratic trends as well as significant group differences
+        between the TD and both ASD groups. There are also significant
+        negative linear and positive quadratic by no-delay group
+        interactions, suggesting steeper decrease in clustering for the
+        no-delay group, with steady increases that plateau in the TD
+        group. There was finally a significant negaitve linear by delay
+        group interaction, again with this group decreasing faster than
+        the TD group.
 
-    - ASPL: There are negative linear and positive quadratic trends in ASPL, with no significant group differences. There are also positive linear by delay/no-delay interactions, suggesting quicker decrease in ASPL for the TD group early in noun acquisition. There was also a negative quadratic by delay group interaction, suggesting that the TD group has quicker increase in ASPL later in noun learning.
+    -   ASPL: There are negative linear and positive quadratic trends in
+        ASPL, with no significant group differences. There are also
+        positive linear by delay/no-delay interactions, suggesting
+        quicker decrease in ASPL for the TD group early in noun
+        acquisition. There was also a negative quadratic by delay group
+        interaction, suggesting that the TD group has quicker increase
+        in ASPL later in noun learning.
 
 ```{r, echo = TRUE}
 
@@ -397,7 +489,7 @@ map(matched_df_poly_all, ~ ggplot(.x %>%
   theme_bw(base_size = 24) +
   geom_smooth(method = "lm",
               formula = y ~ poly(x,3))+
-  facet_grid(~metric_plot)+
+ # facet_grid(~metric_plot)+
   labs(title = "Network Statistic Trajectory by Group",
        subtitle = paste("Network Construction:",unique(.x$netBuild))))
 
@@ -405,4 +497,3 @@ map(matched_df_poly_all, ~ ggplot(.x %>%
 
 
 ```
-
