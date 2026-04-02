@@ -29,18 +29,19 @@ admin_data_WG <- get_administration_data("English (American)", "WG",include_demo
 vocab_data_WG <- get_instrument_data("English (American)","WG")
 
 
-
+quantiles <- c(seq(0.95,0.05,-0.05),0.99)
 ## Compute quantiles WS
-quantiles_WS <- fit_vocab_quantiles(vocab_data = admin_data_WS,
+quantiles_WS <- fit_vocab_quantiles(vocab_data = admin_data_WS %>% filter(production > 0),
                                  measure = "production",
-                                 quantiles = seq.int(0.1,0.9,0.05)) %>%
+                                 quantiles = quantiles) %>%
   pivot_wider(names_from = "quantile",
               values_from = `"production"`)
+  
 
 ## Compute quantiles
-quantiles_WG <- fit_vocab_quantiles(vocab_data = admin_data_WG,
+quantiles_WG <- fit_vocab_quantiles(vocab_data = admin_data_WG %>% filter(production > 0),
                                  measure = "production",
-                                 quantiles = seq.int(0.1,0.9,0.05)) %>%
+                                 quantiles = quantiles) %>%
   pivot_wider(names_from = "quantile",
               values_from = `"production"`)
 ## Join admin and vocab data WS, select TD at 15th percentile or more
@@ -50,7 +51,7 @@ vocab_admin_data_WS <- vocab_data_WS %>%
   left_join(get_item_data()) %>% ## retrieve item data from wordbank
   filter(num_item_id <= 680) %>% ## only keep up to 680
   left_join(cdi) %>% ## join in CDI
-  left_join(assign_percentile_produces(.,quantiles_WS)) %>% ## assign kids to LT or TD based on 15 percentile cutoff
+  left_join(assign_percentile_produces(.,norms = quantiles_WS)) %>% ## assign kids to LT or TD based on 15 percentile cutoff
   filter(group == "TD") %>% ## Only keep TD kids
   group_by(data_id) %>% ## Group by participant
   mutate(nproduced = sum(produces), ## compute number of word produced
@@ -66,13 +67,12 @@ vocab_admin_data_WS <- vocab_data_WS %>%
          item_definition,CDI_Metadata_compatible,cue_CoxHae)
 ## Join admin and vocab data WG, select TD at 15th percentile or more
 vocab_admin_data_WG <- vocab_data_WG %>%
-  mutate(data_id = as.factor(data_id)) %>%
-  group_by(data_id) %>%
-  mutate(prop_na = sum(is.na(produces))/n()) %>%
   left_join(admin_data_WG, by = "data_id") %>% ## join admin and vocab data
-  mutate(num_item_id = as.numeric(str_remove(item_id, "item_"),.after = "item_id")) %>% ## create num_item_id
-  left_join(get_item_data()) %>% ## retrieve item data from wordbank
-  left_join(cdi) %>% ## join in CDI
+  left_join(get_item_data(language ="English (American)", form = "WG" )) %>% ## retrieve item data from wordbank
+  filter(item_definition %in% unique(vocab_admin_data_WS$item_definition),
+         production >0) %>%
+  left_join(cdi_items, by = c("item_definition" = "word")) %>% ## join in CDI
+  left_join(select(cdi,-c("lexical_class","lexical_category","category")), by = "num_item_id") %>%
   left_join(assign_percentile_produces(.,quantiles_WG)) %>% ## assign kids to LT or TD based on 15 percentile cutoff
   filter(group == "TD") %>% ## Only keep TD kids
   group_by(data_id) %>% ## Group by participant

@@ -1,4 +1,4 @@
-assign_percentile_produces <- function(d, norms, TD_threshold = 15) {
+assign_percentile_produces <- function(d, norms, TD_threshold = .15) {
   require('dplyr')
 
   d <- droplevels(subset(d, d$type == "word"))
@@ -11,9 +11,9 @@ assign_percentile_produces <- function(d, norms, TD_threshold = 15) {
     dplyr::ungroup()
 
   D$percentile <- 0
-  qlist <- c(99,seq(95,5,by=-5))
+  qlist <- c(.99,seq(.95,.05,by=-.05))
   for (i in 1:nrow(D)) {
-    x <- as.vector(as.matrix(subset(norms, norms$age == D$age[i])[,6:20]))
+    x <- as.vector(as.matrix(subset(norms, norms$age == D$age[i])[,4:23]))
     qi <- which(D$WordsProduced[i] >= x)[1]
     D$percentile[i] <- qlist[qi]
   }
