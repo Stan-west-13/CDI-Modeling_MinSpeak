@@ -267,6 +267,7 @@ d_netstats_first$group_two <- relevel(d_netstats_first$group_two, ref = "no_dela
 ```
 
 ## Typically Developing Total Word Production
+-   We allowed WG to be 2x bigger and WS to be 3x bigger in the TD group. These were the best ratios for optimized matching.
 
 ```{r,message=FALSE, echo =  FALSE}
 d_matched_td %>%

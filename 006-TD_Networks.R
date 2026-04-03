@@ -95,11 +95,12 @@ cdi_items <- readr::read_rds("data/cdi-item-data (MinSpeak).rds") |> as_tibble()
 # vocab_WG_WS <- rbind(vocab_admin_data_WS, vocab_admin_data_WG)
 # saveRDS(vocab_WG_WS, file = "data/td_vocab-admins_WG-WS-2026-03-21.rds")
 
-vocab_admin_data <- read_rds("data/td_vocab-admins_WG-WS-2026-03-21.rds")
-load("data/matched_minspeak.Rdata")
+vocab_admin_data <- read_rds("data/td_vocab-admins_WG-WS-2026-03-21.rds") #%>%
+  filter(n_nouns <= 250)
+load("data/matched_ASD_df.Rdata")
 
 ## Match TD sample to ASD
-ASD_samp <- matched_df_poly_all$assoc %>%
+ASD_samp <- match_noun_assoc$assoc %>%
   select(subjectkey,nproduced,interview_age,form) %>%
   unique() %>%
   mutate(group_super = "ASD")
