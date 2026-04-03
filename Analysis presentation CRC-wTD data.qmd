@@ -54,7 +54,7 @@ library(plotly)
 library(readr)
 library(ggraph)
 library(tidyr)
-
+options(width = 150)
 d_netstats <- read_rds("data/formatted_metadata_crc.rds") %>%
   mutate(nProduced = nproduced,
          netBuild = network,
@@ -268,24 +268,24 @@ d_netstats_first$group_two <- relevel(d_netstats_first$group_two, ref = "no_dela
 
 ## Typically Developing Total Word Production
 
-```{r,message=FALSE, echo =  FALSE, fig.fullwidth=TRUE}
-d_matched_td%>%
-  select(subjectkey, nproduced_total,nouns_produced = nproduced, interview_age) %>%
+```{r,message=FALSE, echo =  FALSE}
+d_matched_td %>%
+  select(subjectkey,form, nproduced_total,nouns_produced = nproduced, interview_age) %>%
     pivot_longer(cols = c("nouns_produced", "nproduced_total"),
                  names_to = "measure",
                  values_to = "nproduced")%>%
-  group_by(measure) %>%
+  group_by(measure,form) %>%
   get_summary_stats(nproduced, type = c('full')) %>%
   as.data.frame()
 
 ggplot(d_matched_td%>%
-  select(subjectkey, nproduced_total,nouns_produced = nproduced, interview_age) %>%
+  select(subjectkey, form,nproduced_total,nouns_produced = nproduced, interview_age) %>%
     pivot_longer(cols = c("nouns_produced", "nproduced_total"),
                  names_to = "measure",
                  values_to = "nproduced"), aes(x = nproduced, y = interview_age))+
   geom_point(size = 6)+
-  facet_wrap(~measure,scales = "free_x") +
-  theme_bw(base_size = 52)+
+  facet_grid(form~measure,scales = "free") +
+  theme_bw(base_size = 28)+
   geom_smooth(method = "lm")
 ```
 
@@ -295,7 +295,7 @@ ggplot(d_matched_td%>%
 ## Matching between delay, no delay, and TD groups.
 
 -   3-way ANOVA revealed no differences in number of nouns produced
-    between the TD and two ASD groups $F(2,485) = 0.1, p = 0.905$.
+    between the TD and two ASD groups $F(2,413) = 0.20, p = 0.819$.
 
 ```{r}
 
@@ -310,9 +310,10 @@ match_noun_assoc <- map(noun_assoc_split, function(x){
     matchit(group_two ~ nProduced, data = ., method = "optimal", distance = "glm"  ,ratio = 2)
   match_df <- x %>%
      filter(subjectkey %in% match.data(matchit_all)$subjectkey) 
+  
   return(match_df)
 })
-
+save(match_noun_assoc,file = "data/matched_ASD_df.Rdata")
 d_netstats_TD <- read_rds("data/formatted_metadata_TD_crc.rds") %>%
   mutate(nProduced = nproduced,netBuild = network,
          metric_plot = factor(netstat, levels = c("degree","clust","dist"),
@@ -343,9 +344,9 @@ map(combined_list, function(x){
 
 map(combined_list, function(x){
   x %>%
-    select(subjectkey,interview_age,nProduced,group_two) %>%
+    select(subjectkey,form,interview_age,nProduced,group_two) %>%
     unique() %>%
-    group_by(group_two) %>%
+    group_by(group_two,form) %>%
     summarize(n = n(),
               mean_age = mean(interview_age),
               mean_produced = mean(nProduced),
