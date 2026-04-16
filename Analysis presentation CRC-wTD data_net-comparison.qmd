@@ -300,21 +300,17 @@ ggplot(d_matched_td%>%
 
 ```{r}
 
-noun_assoc_split <- split(d_netstats_first,d_netstats_first$netBuild)
 
-
-match_noun_assoc <- map(noun_assoc_split, function(x){
-  matchit_all <- x %>%
+match_noun_assoc <- d_netstats_first %>%
     select(subjectkey, interview_age,nProduced, group_two) %>%
     unique() %>%
-    filter(nProduced <= max(x$nProduced[x$group_two == "delay"]+20)) %>%
+    filter(nProduced <= max(nProduced[group_two == "delay"]+20)) %>%
     matchit(group_two ~ nProduced, data = ., method = "optimal", distance = "glm"  ,ratio = 2)
-  match_df <- x %>%
-     filter(subjectkey %in% match.data(matchit_all)$subjectkey) 
+
+match_noun_assoc <- d_netstats_first %>%
+    filter(subjectkey %in% match.data(match_noun_assoc)$subjectkey) 
   
-  return(match_df)
-})
-save(match_noun_assoc,file = "data/matched_ASD_df.Rdata")
+save(match_noun_assoc,file = "data/matched_ASD_df-netcomp.Rdata")
 d_netstats_TD <- read_rds("data/formatted_metadata_TD_crc.rds") %>%
   mutate(nProduced = nproduced,netBuild = network,
          metric_plot = factor(netstat, levels = c("degree","clust","dist"),
@@ -322,18 +318,14 @@ d_netstats_TD <- read_rds("data/formatted_metadata_TD_crc.rds") %>%
          z = vocab_RANz) %>%
   mutate(group_two = "TD",
          group = "TD",
-         interview_date = as.Date(interview_date)) %>%
-  split(.,.$netBuild)
+         interview_date = as.Date(interview_date))
 
-combined_list <- list(assoc = rbind(match_noun_assoc$assoc, d_netstats_TD$assoc),
-                      feat = rbind(match_noun_assoc$feat,d_netstats_TD$feat))
+combined <- rbind(match_noun_assoc, d_netstats_TD)
 
-map(combined_list, function(x){
-  d <- x %>%
+d_aov <- combined %>%
     select(subjectkey,nProduced,group_two) %>%
-    unique() 
-  return(summary(aov(nProduced~group_two, data = d)))
-})[1]
+    unique()  
+summary(aov(nProduced~group_two, data = d_aov))
 
 
 ```
@@ -343,8 +335,7 @@ map(combined_list, function(x){
 
 ```{r, echo =  FALSE,fig.width=48, fig.height=12, fig.fullwidth=TRUE}
 
-map(combined_list, function(x){
-  x %>%
+  combined %>%
     select(subjectkey,form,interview_age,nProduced,group_two) %>%
     unique() %>%
     group_by(group_two,form) %>%
@@ -354,19 +345,18 @@ map(combined_list, function(x){
               sd_age = sd(interview_age),
               sd_produced = sd(nProduced)) %>%
     as.data.frame()
-})[1]
 
-map(combined_list, ~
-        ggplot(.x, aes(x = nProduced, color = group_two))+
-          geom_density(size = 2)+
-          theme_bw(base_size = 52)+
-          labs(title = paste0("Matching between groups ", unique(.x$netBuild))))[1]
 
-map(combined_list, ~
-        ggplot(.x, aes(x = nProduced, , y = interview_age,color = group_two))+
-          geom_point(size = 13)+
-          theme_bw(base_size = 52)+
-          labs(title = paste0("Matching between groups ", unique(.x$netBuild))))[1]
+ggplot(combined, aes(x = nProduced, color = group_two))+
+  geom_density(size = 2)+
+  theme_bw(base_size = 52)+
+  labs(title = "Matching between groups")
+
+
+ggplot(combined, aes(x = nProduced, , y = interview_age,color = group_two))+
+  geom_point(size = 13)+
+  theme_bw(base_size = 52)+
+  labs(title = "Matching between groups ")
 
 
 ```
@@ -436,45 +426,37 @@ map(combined_list, ~
 
 ```{r, echo = TRUE}
 
-nProduced_poly_all <- combined_list %>%
-  map(~ .x %>%
+nProduced_poly_all <- combined %>%
         ungroup() %>%
         select(nProduced) %>%
         unique() %>%
         cbind(poly(.$nProduced,3)) %>%
         rename(linear = "1",
                quadratic = "2",
-               cubic = "3"))
+               cubic = "3")
 
-matched_df_poly_all <- map2(combined_list,nProduced_poly_all, function(x,y){
-                              x %>%
-                              left_join(y) %>%
-                              filter(type == "vocab")
-}) 
- 
+matched_df_poly_all <- combined %>%
+                          left_join(nProduced_poly_all) %>%
+                          filter(type == "vocab")
 
-d_splits_all <- matched_df_poly_all %>%
-  map(~ split(.x,.x$metric_plot))
+d_splits_all <- split(matched_df_poly_all,matched_df_poly_all$netstat)
 
-map(d_splits_all, function(x){
-  map(x, function(y){
+ map(d_splits_all, function(y){
      m1 <- lm(z~linear*group_two, data = y)
      m2 <- lm(z~(linear+quadratic)*group_two, data = y)
      m3 <- lm(z~(linear+quadratic+cubic)*group_two, data = y )
   return(anova(m1,m2,m3))
   })
-})
 
-wt <- ifelse(d_splits_all$assoc$`Median Indegree`$group_two == 'delay',2,1)
+wt <- ifelse(d_splits_all$dist$group_two == 'delay',2,1)
 
-x<- map(d_splits_all, function(x){
-    map(x, function(d){ 
+x<- map(d_splits_all, function(d){ 
       d$group_two <- relevel(d$group_two, ref = "TD")
-          lm(z ~ (linear+quadratic)*group_two, data = d,weights = wt)
+          lm(z ~ (linear+quadratic)*group_two*network, data = d,weights = wt)
       })
-})
 
-map(x, ~map(.x, function(d){summary(d)}))
+
+map(x,function(d){summary(d)})
 
 
 
@@ -485,25 +467,23 @@ map(x, ~map(.x, function(d){summary(d)}))
 
 ```{r}
 
-map(matched_df_poly_all, ~ ggplot(.x %>% 
-         filter(type == "vocab"), aes(x = nProduced, y = z, color = group_two))+
+ggplot(matched_df_poly_all %>% 
+  filter(type == "vocab"), aes(x = nProduced, y = z, color = group_two,linetype = network))+
   #geom_point()+
   theme_bw(base_size = 24) +
   geom_smooth(method = "lm",
               formula = y ~ poly(x,3))+
   facet_grid(form~metric_plot)+
-  labs(title = "Network Statistic Trajectory by Group",
-       subtitle = paste("Network Construction:",unique(.x$netBuild))))
+  labs(title = "Network Statistic Trajectory by Group")
 
-map(matched_df_poly_all, ~ ggplot(.x %>% 
-         filter(type == "vocab"), aes(x = nProduced, y = z, color = group_two))+
+ggplot(matched_df_poly_all %>% 
+         filter(type == "vocab"), aes(x = nProduced, y = z, color = group_two,linetype = network))+
   #geom_point()+
   theme_bw(base_size = 24) +
   geom_smooth(method = "lm",
               formula = y ~ poly(x,3))+
   facet_grid(~metric_plot)+
-  labs(title = "Network Statistic Trajectory by Group",
-       subtitle = paste("Network Construction:",unique(.x$netBuild))))
+  labs(title = "Network Statistic Trajectory by Group")
 
 
 ```
