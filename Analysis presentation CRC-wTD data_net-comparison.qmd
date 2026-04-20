@@ -466,22 +466,20 @@ map(x,function(d){summary(d)})
 ## Plot the Trends
 
 ```{r}
-
-ggplot(matched_df_poly_all %>% 
+d_plot_pred <- readRDS("data/combined_predictions.RDS")
+ggplot(d_plot_pred %>% 
   filter(type == "vocab"), aes(x = nProduced, y = z, color = group_two,linetype = network))+
-  #geom_point()+
+  #geom_point(alpha = 0.2)+
   theme_bw(base_size = 24) +
-  geom_smooth(method = "lm",
-              formula = y ~ poly(x,3))+
+  geom_line(aes(x = nProduced, y = prediction))+
   facet_grid(form~metric_plot)+
   labs(title = "Network Statistic Trajectory by Group")
 
-ggplot(matched_df_poly_all %>% 
+ggplot(d_plot_pred %>% 
          filter(type == "vocab"), aes(x = nProduced, y = z, color = group_two,linetype = network))+
-  #geom_point()+
+  #geom_point(alpha = 0.2)+
   theme_bw(base_size = 24) +
-  geom_smooth(method = "lm",
-              formula = y ~ poly(x,3))+
+  geom_line(aes(x = nProduced, y = prediction))+
   facet_grid(~metric_plot)+
   labs(title = "Network Statistic Trajectory by Group")
 

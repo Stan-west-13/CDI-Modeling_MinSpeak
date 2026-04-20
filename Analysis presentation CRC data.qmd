@@ -146,21 +146,11 @@ ggsave("Figures/network_stats_comparison.png")
 
 ```
 
-## Plotting unmatched statistic distributions over production {.smaller .scrollable}
+## Plotting unmatched statistic distributions over production {.smaller .scrollable .hidden}
 
--   All three groups show different network structures across vocabulary
-    size, with these trends changing as a function of how those networks
-    were constructed.
-
-<!-- -->
-
--   The middle group does not have any child with production past 100
-    for the words and gestures form, making it hard to compare to the
-    other groups, so we removed this group in further analyses. We refer
-    to our two groups in the subsequent slides as delayed (72 - 110
-    months) with lower than normative vocabulary production and
-    non-delayed (16 - 47 months) with vocabulary production on-par for
-    their age.
+-   Distributions across the unmatched samples look similar, especially
+    at smaller vocabularies.
+-   However, this is still collapsed across forms.
 
 ```{r}
 
@@ -198,6 +188,10 @@ ggplot(d_netstats , aes(x = group, y = z, color = group))+
 
 ```
 
+-   The middle group does not have any child with production past 100
+    for the words and gestures form, making it hard to compare to the
+    other groups, so we removed this group.
+
 ## First Administrations - Both Forms
 
 -   Including both WS and WG, but only taking the first administration:
@@ -210,7 +204,7 @@ ggplot(d_netstats , aes(x = group, y = z, color = group))+
 
 mdl_split <- d_netstats %>%
   filter(group == "mdl",
-         (nProduced <=110 & interview_age >= 72)) %>%
+         (nProduced <=110 & interview_age >= 60)) %>%
   mutate(group_two = "delay",
          group_two = as.factor(group_two))
 
@@ -243,20 +237,18 @@ d_netstats_first$group_two <- relevel(d_netstats_first$group_two, ref = "no_dela
 ## Matching to the minimally speaking group.
 
 -   Welch two sample t-test revealed no significant difference in
-    productive vocabulary between groups $t(74.54) = -0.42, p = 0.679$.
+    productive vocabulary between groups $t(79.59) = -0.71, p = 0.481$.
 
 ```{r}
 
 noun_assoc_split <- split(d_netstats_first,d_netstats_first$netBuild)
 
-match_ratio <- 2
 
 match_noun_assoc <- map(noun_assoc_split, function(x){
   matchit_all <- x %>%
     select(subjectkey, interview_age,nProduced, group_two) %>%
     unique() %>%
-    filter(nProduced <= max(x$nProduced[x$group_two == "delay"]+20)) %>%
-    matchit(group_two ~ nProduced, data = ., method = "optimal", distance = "glm"  ,ratio = match_ratio)
+    matchit(group_two ~ nProduced, data = ., method = "optimal", distance = "glm"  ,ratio = 3)
   match_df <- x %>%
      filter(subjectkey %in% match.data(matchit_all)$subjectkey) 
   return(match_df)
@@ -272,9 +264,8 @@ map(match_noun_assoc, function(x){
 
 ```
 
--   Keeping both WS and WG forms, we match the no-delay group to the
-    $n = 41$ delayed children, allowing the no-delay group to be 2x
-    bigger ($n = 82$).
+-   Keeping both WS and WG forms, we match the no-delay group to the 45
+    delayed children, allowing the no-delay group to be 2x bigger.
 
 ```{r, echo =  FALSE,fig.width=48, fig.height=12, fig.fullwidth=TRUE}
 
@@ -319,32 +310,36 @@ map(match_noun_assoc, ~
 
 -   Noun Features (TAR filtered; interpreted by Chris Cox):
 
-    -   Median Indegree: There are no significant trends, linear or
-        quadratic, nor group effects for indegree.
+    -   There is a negative quadratic trend for indegree, and no linear
+        trend, for both groups. There is a main effect of group whereby
+        indegree is higher on average for the delayed group.
 
-    -   Clustering coefficient: There are no trends, linear or
-        quadratic, for the clustering coefficient, but there is a main
-        effect of group whereby the delayed group tends to have higher
-        clustering coefficients on average.
+    -   There are no trends, linear or quadratic, for the clustering
+        coefficient, but there is a main effect of group whereby the
+        delayed group tends to have higher clustering coefficients on
+        average.
 
-    -   ASPL: There are negative linear and positive quadratic trends of
+    -   There is a negative linear trend (and no quadratic trend) of
         ASPL for both groups, and this trend does not differ between
         groups, nor is there a difference of means.
 
 -   Noun-only Associations (interpreted by Chris Cox):
 
-    -   Median Indegree: The groups do not differ on indegree; there is
-        a negative linear trend (no quadratic), but neither differ
-        between groups. There is a positive interaction of the linear
-        trend with group, suggesting a sharper decline in indegree for
-        the no delay group.
+    -   The groups do not differ on indegree; there is a negative linear
+        and a positive quadradic trend, but neither differ between
+        groups, nor is there a difference in the group means.
 
-    -   Clustering Coefficient: There are no significant main effects of
-        linear or quadratic trend, nor a main effect of group.
+    -   Both groups have negative linear and quadradic trends in their
+        clustering coefficients as vocabularies grow, but the "delayed"
+        group has a steeper negative linear trend than the "typical"
+        group. However, the group means do not differ.
 
-    -   ASPL: Both groups have a negative linear trend of ASPL
-        (augmented by a positive quadradic trend). There are no group
-        main effects nor interactions.
+    -   Both groups have a negative linear trend of ASPL (augmented by a
+        positive quadradic trend), but there is a main effect such that
+        paths are longer in the delayed group on average. There is
+        almost an interaction on the linear trend, which would have
+        suggested that ASPL declines more slowly for the delayed group,
+        but this interaction is not actually significant (p = .0596).
 
 ```{r, echo = TRUE}
 
@@ -377,7 +372,7 @@ map(d_splits_all, function(x){
   })
 })
 
-wt <- ifelse(d_splits_all$assoc$`Median Indegree`$group_two == 'delay',match_ratio,1)
+wt <- ifelse(d_splits_all$assoc$`Median Indegree`$group_two == 'delay',3,1)
 
 x<- map(d_splits_all, function(x){
     map(x, function(d){ 
@@ -387,6 +382,9 @@ x<- map(d_splits_all, function(x){
 })
 
 map(x, ~map(.x, function(d){summary(d)}))
+
+
+
 
 ```
 
@@ -400,8 +398,13 @@ map(matched_df_poly_all, ~ ggplot(.x %>%
   theme_bw(base_size = 24) +
   geom_smooth(method = "lm",
               formula = y ~ poly(x,3))+
-  facet_grid(~metric_plot)+
+ # facet_grid(~metric_plot)+
   labs(title = "Network Statistic Trajectory by Group",
        subtitle = paste("Network Construction:",unique(.x$netBuild))))
 
+
+
+
 ```
+
+# 
