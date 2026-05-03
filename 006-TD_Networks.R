@@ -95,7 +95,7 @@ cdi_items <- readr::read_rds("data/cdi-item-data (MinSpeak).rds") |> as_tibble()
 # vocab_WG_WS <- rbind(vocab_admin_data_WS, vocab_admin_data_WG)
 # saveRDS(vocab_WG_WS, file = "data/td_vocab-admins_WG-WS-2026-03-21.rds")
 
-vocab_admin_data <- read_rds("data/td_vocab-admins_WG-WS-2026-03-21.rds") #%>%
+vocab_admin_data <- read_rds("data/td_vocab-admins_WG-WS-2026-03-21.rds") %>%
   filter(n_nouns <= 250)
 load("data/matched_ASD_df.Rdata")
 
@@ -117,7 +117,7 @@ match_df <- rbind(ASD_samp, select(vocab_admin_data,
   mutate(group_super = factor(group_super, levels = c("TD", "ASD"))) %>%
   unique()
 ## Matching model - 3:1 ratio
-df_form_matched <- map2_dfr(c(2,3),split(match_df,match_df$form), function(r,x){
+df_form_matched <- map2_dfr(c(1,3),split(match_df,match_df$form), function(r,x){
   mod <- matchit(group_super~nproduced,
                  data = x,
                  method = "optimal",
