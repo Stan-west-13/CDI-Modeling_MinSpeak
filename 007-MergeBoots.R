@@ -15,11 +15,7 @@ library(furrr)
 #' @examples
 #' # combined_boot <- combine_boot_objects(c("boot1.rds", "boot2.rds"))
 combine_boot_objects <- function(files) {
-  if (!all(file.exists(files))) {
-    stop("One or more files do not exist.")
-  }
-  
-  # Read all boot objects
+   # Read all boot objects
   boot_list <- lapply(files, readRDS)
   
   # Validate that all are boot objects
