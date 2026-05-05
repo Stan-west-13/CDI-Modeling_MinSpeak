@@ -16,6 +16,13 @@ hues_select <- function(n){
   }
 }
 
+auto_scales <- function(x, contr){
+  v <- vector(length = length(contr))
+  for(i in 1:length(contr)){
+    v[i] <- unique(x$fill[x$contrasts_plt == contr[i]])
+  }
+  return(v)
+}
 
 d <- list_merge_CIs("ci","CI")
 
@@ -28,7 +35,8 @@ d_plot <- d %>%
                                contrast %in% c("diff_ND_D","diff_TD_D","diff_TD_ND")
                              ,FALSE,TRUE)) %>%
   left_join(fill_tbl) %>%
-  mutate(contrasts_plt = factor(contrast, 
+  mutate(contrast = as.factor(contrast),
+         contrasts_plt = factor(contrast, 
                                 levels = c("D","ND","TD","diff_ND_D","diff_TD_ND","diff_TD_D"),
                                 labels = c("delay","no-delay","non-autistic","no-delay - delay","non-autistic - no-delay",
                                            "non-autistic - delay")))
@@ -37,11 +45,7 @@ d_plot_asd <- d_plot %>%
   filter(contrast == "D"|contrast == "ND"|contrast == "diff_ND_D")
 ggplot(d_plot_asd, aes(x = bin, y = bs, color = contrasts_plt))+
   geom_line()+
-  scale_color_manual(values = c(
-   unique(d_plot_asd$fills[d_plot_asd$contrast == "D"]),
-   unique(d_plot_asd$fills[d_plot_asd$contrast == "ND"]),
-   unique(d_plot_asd$fills[d_plot_asd$contrast == "diff_ND_D"])
-  ))+
+  scale_color_manual(values = auto_scales(d_plot_asd,c("delay","no-delay","no-delay - delay")))+
   facet_grid(measure ~ network,scales = "free")+
   geom_errorbar(aes(ymin = lower,ymax=upper),width = 0,, color = "black")+
   geom_point(shape = 21,size = 3, fill = ifelse(d_plot_asd$sig,d_plot_asd$fills, "white") ) +
@@ -58,13 +62,11 @@ d_plot_asd_td <- d_plot %>% filter(contrast == "D"|
 ## Diff two ASD TD
 ggplot(d_plot_asd_td , aes(x = bin, y = bs, color = contrasts_plt))+
   geom_line()+
-  scale_color_manual(values = c(
-    unique(d_plot_asd_td$fills[d_plot_asd_td$contrast == "D"]),
-    unique(d_plot_asd_td$fills[d_plot_asd_td$contrast == "ND"]),
-    unique(d_plot_asd_td$fills[d_plot_asd_td$contrast == "TD"]),
-    unique(d_plot_asd_td$fills[d_plot_asd_td$contrast == "diff_TD_ND"]),
-    unique(d_plot_asd_td$fills[d_plot_asd_td$contrast == "diff_TD_D"])
-  ))+
+  scale_color_manual(values = auto_scales(d_plot_asd_td, c("delay",
+                                                           "no-delay",
+                                                           "non-autistic",
+                                                           "non-autistic - no-delay",
+                                                           "non-autistic - delay")))+
   facet_grid(measure ~ network,scales = "free")+
   geom_errorbar(aes(ymin = lower,ymax=upper),width = 0,color = "black")+
   geom_point(shape = 21,size = 3, fill = ifelse(d_plot_asd_td$sig,d_plot_asd_td$fills, "white") ) +
