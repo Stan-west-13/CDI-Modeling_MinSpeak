@@ -69,7 +69,9 @@ ggplot(d_plot_asd, aes(x = bin, y = bs,group = contrast, color = contrasts_plt))
     legend.title = element_blank(),
     legend.position = c(0.7,0.3),
     legend.background = element_rect(colour =  "black")
-  )
+  )+
+  labs(x = "nproduced",
+       y = "RAN Standardized Value")
 
 
 d_plot_asd_td_D_TD <- d_plot %>% filter(contrast == "D"|
@@ -105,7 +107,9 @@ ggplot(d_plot_asd_td_D_TD , aes(x = bin, y = bs,group = contrast, color = contra
     legend.title = element_blank(),
     legend.position = c(0.7,0.3),
     legend.background = element_rect(colour =  "black")
-  )
+  )+
+  labs(x = "nproduced",
+       y = "RAN Standardized Value")
 
 d_plot_asd_td_ND_TD <- d_plot %>% filter(contrast == "ND"|
                                           contrast == "TD"|
@@ -138,5 +142,7 @@ ggplot(d_plot_asd_td_ND_TD , aes(x = bin, y = bs,group =contrast, color = contra
     legend.title = element_blank(),
     legend.position = c(0.7,0.3),
     legend.background = element_rect(colour =  "black")
-  )
+  )+
+  labs(x = "nproduced",
+       y = "RAN Standardized Value")
 
