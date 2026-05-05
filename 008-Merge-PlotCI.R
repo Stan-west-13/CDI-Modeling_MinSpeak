@@ -38,7 +38,7 @@ d_plot <- d %>%
   mutate(contrast = as.factor(contrast),
          contrasts_plt = factor(contrast, 
                                 levels = c("D","ND","TD","diff_ND_D","diff_TD_ND","diff_TD_D"),
-                                labels = c("older-autistic","younger-autistic","non-autistic","younger-autistic - older-autistic","non-autistic - no-delay",
+                                labels = c("older-autistic","younger-autistic","non-autistic","younger-autistic - older-autistic","non-autistic - younger-autistic",
                                            "non-autistic - older-autistic")))
 ## Diff two ASD plot
 ## Dodge it so no overlap.
@@ -62,7 +62,7 @@ ggplot(d_plot_asd, aes(x = bin, y = bs,group = contrast, color = contrasts_plt))
              size = 3, 
              fill = ifelse(d_plot_asd$sig,d_plot_asd$fills, "white"),
              position = position_dodge(0.5)) +
-  theme_bw() +
+  theme_bw(base_size = 16) +
   geom_hline(yintercept = 0, linetype = 2, alpha  = 0.2)+
   scale_x_discrete(limits = factor(seq(0,250,25)))+
   theme(
@@ -72,7 +72,8 @@ ggplot(d_plot_asd, aes(x = bin, y = bs,group = contrast, color = contrasts_plt))
   )+
   labs(x = "nproduced",
        y = "RAN Standardized Value")
-
+ggsave("Figures/older_younger_ASD_comp.png",
+       width = 24, height = 20, units = "cm",dpi = 300)
 
 d_plot_asd_td_D_TD <- d_plot %>% filter(contrast == "D"|
                                      contrast == "TD"|
@@ -101,7 +102,7 @@ ggplot(d_plot_asd_td_D_TD , aes(x = bin, y = bs,group = contrast, color = contra
                            d_plot_asd_td_D_TD$fills, 
                            "white"),
             position = position_dodge(0.5) ) +
-  theme_bw() +
+  theme_bw(base_size = 16) +
   scale_x_discrete(limits = factor(seq(0,250,25)))+
   theme(
     legend.title = element_blank(),
@@ -110,7 +111,8 @@ ggplot(d_plot_asd_td_D_TD , aes(x = bin, y = bs,group = contrast, color = contra
   )+
   labs(x = "nproduced",
        y = "RAN Standardized Value")
-
+ggsave("Figures/older_nonAut.png",
+       width = 24, height = 20, units = "cm",dpi = 300)
 d_plot_asd_td_ND_TD <- d_plot %>% filter(contrast == "ND"|
                                           contrast == "TD"|
                                           contrast == "diff_TD_ND"
@@ -136,7 +138,7 @@ ggplot(d_plot_asd_td_ND_TD , aes(x = bin, y = bs,group =contrast, color = contra
              size = 3, 
              fill = ifelse(d_plot_asd_td_ND_TD$sig,d_plot_asd_td_ND_TD$fills, "white"),
              position = position_dodge(0.5)) +
-  theme_bw() +
+  theme_bw(base_size = 16) +
   scale_x_discrete(limits = factor(seq(0,250,25)))+
   theme(
     legend.title = element_blank(),
@@ -145,4 +147,6 @@ ggplot(d_plot_asd_td_ND_TD , aes(x = bin, y = bs,group =contrast, color = contra
   )+
   labs(x = "nproduced",
        y = "RAN Standardized Value")
+ggsave("Figures/younger_nonAut_comp.png",
+       width = 24, height = 20, units = "cm",dpi = 300)
 
