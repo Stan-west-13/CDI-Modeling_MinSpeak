@@ -47,7 +47,12 @@ d_plot_asd <- d_plot %>%
 ggplot(d_plot_asd, aes(x = bin, y = bs,group = contrast, color = contrasts_plt))+
   geom_line()+
   scale_color_manual(values = auto_scales(d_plot_asd,c("D","ND","diff_ND_D")))+
-  facet_grid(measure ~ network,scales = "free")+
+  facet_grid(measure ~ network,
+             scales = "free",
+             labeller = labeller(measure = as_labeller(c("clust" = "Clustering Coefficient", 
+                                                         "degree" = "Median Indegree", 
+                                                         "dist" = "ASPL")),
+                                 network = as_labeller(c("assoc" = "Associations", "feat" = "Features"))))+
   geom_errorbar(aes(ymin = lower,ymax=upper,group = contrast),
                 width = 0,
                 color = "black",
@@ -59,7 +64,12 @@ ggplot(d_plot_asd, aes(x = bin, y = bs,group = contrast, color = contrasts_plt))
              position = position_dodge(0.5)) +
   theme_bw() +
   geom_hline(yintercept = 0, linetype = 2, alpha  = 0.2)+
-  scale_x_discrete(limits = factor(seq(0,250,25)))
+  scale_x_discrete(limits = factor(seq(0,250,25)))+
+  theme(
+    legend.title = element_blank(),
+    legend.position = c(0.7,0.3),
+    legend.background = element_rect(colour =  "black")
+  )
 
 
 d_plot_asd_td_D_TD <- d_plot %>% filter(contrast == "D"|
@@ -72,7 +82,12 @@ ggplot(d_plot_asd_td_D_TD , aes(x = bin, y = bs,group = contrast, color = contra
   scale_color_manual(values = auto_scales(d_plot_asd_td_D_TD, c("D",
                                                            "TD",
                                                            "diff_TD_D")))+
-  facet_grid(measure ~ network,scales = "free")+
+  facet_grid(measure ~ network,
+             scales = "free",
+             labeller = labeller(measure = as_labeller(c("clust" = "Clustering Coefficient", 
+                                                         "degree" = "Median Indegree", 
+                                                         "dist" = "ASPL")),
+                                 network = as_labeller(c("assoc" = "Associations", "feat" = "Features"))))+
   geom_errorbar(aes(ymin = lower,ymax=upper,group = contrast),
                 width = 0,
                 color = "black",
@@ -85,7 +100,12 @@ ggplot(d_plot_asd_td_D_TD , aes(x = bin, y = bs,group = contrast, color = contra
                            "white"),
             position = position_dodge(0.5) ) +
   theme_bw() +
-  scale_x_discrete(limits = factor(seq(0,250,25)))
+  scale_x_discrete(limits = factor(seq(0,250,25)))+
+  theme(
+    legend.title = element_blank(),
+    legend.position = c(0.7,0.3),
+    legend.background = element_rect(colour =  "black")
+  )
 
 d_plot_asd_td_ND_TD <- d_plot %>% filter(contrast == "ND"|
                                           contrast == "TD"|
@@ -97,7 +117,12 @@ ggplot(d_plot_asd_td_ND_TD , aes(x = bin, y = bs,group =contrast, color = contra
   scale_color_manual(values = auto_scales(d_plot_asd_td_ND_TD, c("ND",
                                                            "TD",
                                                            "diff_TD_ND")))+
-  facet_grid(measure ~ network,scales = "free")+
+  facet_grid(measure ~ network,
+             scales = "free",
+             labeller = labeller(measure = as_labeller(c("clust" = "Clustering Coefficient", 
+                                                         "degree" = "Median Indegree", 
+                                                         "dist" = "ASPL")),
+                                 network = as_labeller(c("assoc" = "Associations", "feat" = "Features"))))+
   geom_errorbar(aes(ymin = lower,ymax=upper),
                 width = 0,
                 color = "black",
@@ -108,5 +133,10 @@ ggplot(d_plot_asd_td_ND_TD , aes(x = bin, y = bs,group =contrast, color = contra
              fill = ifelse(d_plot_asd_td_ND_TD$sig,d_plot_asd_td_ND_TD$fills, "white"),
              position = position_dodge(0.5)) +
   theme_bw() +
-  scale_x_discrete(limits = factor(seq(0,250,25)))
+  scale_x_discrete(limits = factor(seq(0,250,25)))+
+  theme(
+    legend.title = element_blank(),
+    legend.position = c(0.7,0.3),
+    legend.background = element_rect(colour =  "black")
+  )
 
