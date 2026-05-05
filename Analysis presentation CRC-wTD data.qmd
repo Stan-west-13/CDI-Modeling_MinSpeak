@@ -267,7 +267,7 @@ d_netstats_first$group_two <- relevel(d_netstats_first$group_two, ref = "no_dela
 ```
 
 ## Typically Developing Total Word Production
--   We allowed WG to be 2x bigger and WS to be 3x bigger in the TD group. These were the best ratios for optimized matching.
+-   We allowed WG to be as big as the ASD group and WS to be 3x bigger in the TD group. These were the best ratios for optimized matching. Allowing more kids in the WG group exacerbated differences in vocabulary especially earlier and later in noun production. 
 
 ```{r,message=FALSE, echo =  FALSE}
 d_matched_td %>%
@@ -296,7 +296,7 @@ ggplot(d_matched_td%>%
 ## Matching between delay, no delay, and TD groups.
 
 -   3-way ANOVA revealed no differences in number of nouns produced
-    between the TD and two ASD groups $F(2,413) = 0.20, p = 0.819$.
+    between the TD and two ASD groups $F(2,340) = 0.73, p = 0.481$.
 
 ```{r}
 
@@ -361,6 +361,15 @@ map(combined_list, ~
           geom_density(size = 2)+
           theme_bw(base_size = 52)+
           labs(title = paste0("Matching between groups ", unique(.x$netBuild))))[1]
+
+
+map(combined_list, ~
+        ggplot(.x, aes(x = nProduced, color = group_two))+
+          geom_density(size = 2)+
+          facet_wrap(~form)+
+          theme_bw(base_size = 52)+
+          labs(title = paste0("Matching between groups ", unique(.x$netBuild))))[1]
+
 
 map(combined_list, ~
         ggplot(.x, aes(x = nProduced, , y = interview_age,color = group_two))+
@@ -477,9 +486,15 @@ x<- map(d_splits_all, function(x){
 map(x, ~map(.x, function(d){summary(d)}))
 
 
+## Combine df for BS in OSG
 
+df_osg <- map_dfr(matched_df_poly_all, function(x){
+  as.data.frame(x)
+  })
 
-```
+write_rds(df_osg, file = "data/asd_TD_minspeak_osg.rds")
+
+:```
 
 ## Plot the Trends
 
