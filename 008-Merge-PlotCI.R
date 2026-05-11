@@ -2,6 +2,9 @@ library(tidyverse)
 library(purrr)
 library(ggplot2)
 library(scales)
+library(broom)
+library(webshot2)
+library(kableExtra)
 list_merge_CIs <- function(dir,pattern){
   f <- list.files(path = dir, pattern = pattern, full.names = T)
   df <- map_dfr(f, function(x){
@@ -190,17 +193,25 @@ ggsave("Figures/younger_nonAut_comp.pdf",
 
 ## Run Models w/ POC
 d <- read_rds("data/matched_data_split.rds")
-d$group_helmert <- contr.helmert()
 
 contr.mat <- matrix(c(1,-1,0,0.5,0.5,-1),
                     ncol = 2)
-colnames(contr.mat) <- c("ND_vs_D", "ND_D_vs_TD")
-rownames(contr.mat) <- c("ND", "D", "TD")
+colnames(contr.mat) <- c("younger_vs_older", "younger_older_vs_TD")
+rownames(contr.mat) <- c("younger", "older", "TD")
 
+Sys.setenv(CHROMOTE_CHROME =chromote::find_chrome()) 
 
 map(d, function(x){
-  contrasts(x$group_two) <- contr.mat
-  summary(lm(z ~ (linear + quadratic) * group_two , data = x[x$network == "feat",]))
+  x$network <- as.factor(x$network)
+  x$group <- as.factor(x$group_two)
+  contrasts(x$group) <- contr.mat
+  m <- lm(z ~ (linear + quadratic) * group * network , data = x)
+  rtn <- tidy(m) %>%  kbl(caption= paste0("Linear Model Output Table ",unique(x$netstat)),
+                             format= "html",
+                             align="r",) %>%
+    kable_classic(full_width = T, html_font = "helvetica") %>%
+    save_kable(keep_tex = T, file = paste0("tables/table_",unique(x$netstat),".pdf"))
+  return(list(m = summary(m), rtn ))
 })
 
 
