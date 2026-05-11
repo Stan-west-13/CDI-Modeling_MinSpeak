@@ -188,6 +188,20 @@ ggsave("Figures/younger_nonAut_comp.png",
 ggsave("Figures/younger_nonAut_comp.pdf",
        width = 24, height = 20, units = "cm",dpi = 300)
 
+## Run Models w/ POC
+d <- read_rds("data/matched_data_split.rds")
+d$group_helmert <- contr.helmert()
+
+contr.mat <- matrix(c(1,-1,0,0.5,0.5,-1),
+                    ncol = 2)
+colnames(contr.mat) <- c("ND_vs_D", "ND_D_vs_TD")
+rownames(contr.mat) <- c("ND", "D", "TD")
+
+
+map(d, function(x){
+  contrasts(x$group_two) <- contr.mat
+  summary(lm(z ~ (linear + quadratic) * group_two , data = x[x$network == "feat",]))
+})
 
 
 
