@@ -210,9 +210,45 @@ map(d, function(x){
                              format= "html",
                              align="r",) %>%
     kable_classic(full_width = T, html_font = "helvetica") %>%
-    save_kable(keep_tex = T, file = paste0("tables/table_",unique(x$netstat),".pdf"))
+    save_kable(keep_tex = T, file = paste0("tables/table_",unique(x$netstat),".png")) 
   return(list(m = summary(m), rtn ))
 })
+
+## Descriptives
+td <- read_rds("data/td_vocab-admins_WG-WS-2026-03-21.rds") %>%
+  select(subjectkey, interview_age, nproduced_total = nproduced,n_nouns) %>%
+  unique()
+ASD_all <- read_rds("data/combined_CDILetti.rds")
+ASD <- ASD_all%>%
+  group_by(subjectkey,interview_age) %>%
+  mutate(n_nouns = sum(Produces & lexical_class == "nouns",na.rm = T)) %>%
+  select(subjectkey, interview_age, nproduced_total = nProduced, n_nouns) %>%
+  unique() %>%
+  ungroup()
+
+all <- rbind(ASD,td)
+
+desc <- d$degree %>% 
+  left_join(all) %>%
+  select(subjectkey, group_two,interview_age,nproduced_total,n_nouns) %>%
+  unique()
+
+desc %>%
+  group_by(group_two) %>%
+  summarize(n= n(),
+            m_age = mean(interview_age),
+            sd_age = sd(interview_age),
+            m_nproduced_total = mean(nproduced_total,na.rm = T),
+            sd_nproduced_total = sd(nproduced_total,na.rm = T),
+            m_n_nouns = mean(n_nouns),
+            sd_n_nouns = sd(n_nouns)) %>%
+  as.data.frame() %>%
+  kbl(caption= "Descriptive Stats by Group ",
+                     format= "html",
+                     align="r",) %>%
+  kable_classic(full_width = T, html_font = "helvetica") %>%
+  save_kable(keep_tex = T, file = "tables/table_descriptives.pdf")
+  
 
 
 
